@@ -25,6 +25,15 @@ change with the [`code-review`](https://github.com/anthropics/claude-code) plugi
 Skipped: drafts, pull requests opened by bots (Renovate, release-please; the action refuses
 bot actors anyway) and pull requests from forks (GitHub withholds the secret from those).
 
+### Inputs
+
+| Input | Default | What it does |
+|---|---|---|
+| `max-turns` | `40` | Cap on Claude's turns per review. |
+| `timeout-minutes` | `20` | Cap on the job's run time. |
+| `guidelines` | `""` | More guideline files to review against, space-separated paths without quotes (e.g. `docs/design/README.md`). `CLAUDE.md` is always read; a file it only links to may not be. |
+| `show-full-output` | `false` | Prints Claude's full transcript, tool results included, in the job log, to see what a review read and why. Private repositories only, and only for a while: the log holds whatever Claude read. |
+
 ### Once per organization
 
 1. Install the [Claude GitHub App](https://github.com/apps/claude) on all repositories.
