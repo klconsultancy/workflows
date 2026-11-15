@@ -7,6 +7,7 @@ workflow of its own; the logic, the pinned actions and the permissions live here
 | Workflow | What it does |
 |---|---|
 | [`claude-review.yml`](.github/workflows/claude-review.yml) | Claude reviews every pull request against the repository's own `CLAUDE.md` / `AGENTS.md` |
+| [`pr-title.yml`](.github/workflows/pr-title.yml) | A pull request's title is a Conventional Commit, the squash commit's message |
 
 ## Claude review
 
@@ -84,6 +85,36 @@ jobs:
     with:
       max-turns: 60
 ```
+
+## PR title
+
+Checks the pull request's title with
+[`action-semantic-pull-request`](https://github.com/amannn/action-semantic-pull-request), so
+the squash commit is a Conventional Commit. It runs on `pull_request`, not
+`pull_request_target`: it only reads the title, which a read-only token can, and the pull
+request that adds the caller gets the check too.
+
+Add `.github/workflows/pr-title.yml`:
+
+```yaml
+name: PR title
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions: {}
+
+jobs:
+  title:
+    name: PR title
+    permissions:
+      pull-requests: read
+    uses: klconsultancy/workflows/.github/workflows/pr-title.yml@<sha> # main
+```
+
+The required status check in the repository's ruleset is **`PR title / Conventional commit
+title`**: a job from a reusable workflow is named `<caller job> / <its own job>`.
 
 ## Changing a workflow here
 

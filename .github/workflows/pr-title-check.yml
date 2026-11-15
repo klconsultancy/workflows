@@ -1,0 +1,14 @@
+name: PR title check
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions: {}
+
+jobs:
+  title:
+    name: PR title
+    permissions:
+      pull-requests: read
+    uses: ./.github/workflows/pr-title.yml
