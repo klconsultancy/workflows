@@ -124,6 +124,18 @@ scope() { # scope [--last-reviewed <sha>]
   scope
   [ "$status" -eq 0 ]
   [ "$(cat "$OUT/changed-files.txt")" = "A	feature.py" ]
-  [ "$(sort "$OUT/skipped-files.txt")" = "$(printf '%s\n' uv.lock vendor/lib/x.py web/app.min.js web/package-lock.json)" ]
+  [ "$(sort "$OUT/skipped-files.txt")" = "$(printf 'generated\t%s\n' uv.lock vendor/lib/x.py web/app.min.js web/package-lock.json)" ]
   refute_grep 'lock' "$OUT/changes.diff"
+}
+
+@test "a changed symlink is skipped, not read" {
+  git checkout -qb feature
+  ln -s /etc/passwd link
+  git add link && git commit -qm 'add a symlink'
+  commit feature.py 'print(1)' 'feat'
+
+  scope
+  [ "$status" -eq 0 ]
+  [ "$(cat "$OUT/changed-files.txt")" = "A	feature.py" ]
+  [ "$(cat "$OUT/skipped-files.txt")" = "symlink	link" ]
 }

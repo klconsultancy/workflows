@@ -42,6 +42,18 @@ normalize() {
   printf '%s\n' "${parts[*]}"
 }
 
+# unlink_symlinks <path>: removes each symlink along <path>, itself and its parent directories,
+# so writing or removing <path> never goes through a link the PR planted (to outside the
+# repository, or to another file in it). The base has real files and directories there.
+unlink_symlinks() {
+  local prefix="" part
+  local IFS=/
+  for part in $1; do
+    prefix="${prefix:+$prefix/}$part"
+    if [ -L "$prefix" ]; then rm -f "$prefix"; return; fi
+  done
+}
+
 # imports <rev> <path>: the repository files that <path> imports with @, as Claude Code reads them.
 imports() {
   local dir
@@ -86,6 +98,7 @@ while IFS= read -r path; do
     mkdir -p "$out/head-rules/$(dirname "$path")"
     git show "$head_blob" > "$out/head-rules/$path"
   fi
+  unlink_symlinks "$path"
   if [ -n "$base_blob" ]; then
     mkdir -p "$(dirname "$path")"
     git show "$base_blob" > "$path"

@@ -87,3 +87,39 @@ rules() { # rules [--guidelines "<paths>"]
   refute_listed app.py "$OUT/rules-files.txt"
   [ "$(cat "$OUT/changed-rules.txt")" = AGENTS.md ]
 }
+
+@test "a rules file the PR turns into a symlink: the target is untouched, the file is the base's" {
+  printf 'victim\n' > "$BATS_TEST_TMPDIR/victim.txt"
+  git rm -q AGENTS.md && ln -s "$BATS_TEST_TMPDIR/victim.txt" AGENTS.md
+  git add AGENTS.md && git commit -qm 'symlink AGENTS.md out'
+
+  rules
+  [ "$status" -eq 0 ]
+  [ "$(cat "$BATS_TEST_TMPDIR/victim.txt")" = victim ]
+  [ ! -L AGENTS.md ]
+  grep -q 'Strict TDD' AGENTS.md
+}
+
+@test "a symlink to a file inside the repository: that file is untouched too" {
+  git rm -q AGENTS.md && ln -s app.py AGENTS.md
+  git add AGENTS.md && git commit -qm 'symlink AGENTS.md to app.py'
+
+  rules
+  [ "$status" -eq 0 ]
+  [ "$(cat app.py)" = code ]
+  [ ! -L AGENTS.md ]
+  grep -q 'Strict TDD' AGENTS.md
+}
+
+@test "a directory of rules files the PR turns into a symlink: nothing is written through it" {
+  mkdir -p "$BATS_TEST_TMPDIR/outside"
+  printf 'victim\n' > "$BATS_TEST_TMPDIR/outside/rules.md"
+  git rm -rq docs && ln -s "$BATS_TEST_TMPDIR/outside" docs
+  git add docs && git commit -qm 'symlink docs out'
+
+  rules
+  [ "$status" -eq 0 ]
+  [ "$(cat "$BATS_TEST_TMPDIR/outside/rules.md")" = victim ]
+  [ ! -L docs ]
+  grep -q 'No globals' docs/rules.md
+}
