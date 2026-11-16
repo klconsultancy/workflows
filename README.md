@@ -140,5 +140,6 @@ Every change goes through a pull request. Pin actions to a full commit SHA with 
 in a comment, keep `permissions` minimal and `persist-credentials: false`, and check the
 file with [actionlint](https://github.com/rhysd/actionlint) and
 [zizmor](https://github.com/zizmorcore/zizmor); the Test workflow runs actionlint, zizmor,
-shellcheck and the bats tests on every pull request, and `claude-review-check.yml` runs this
-repository's own Claude review workflow, as changed by the pull request, on the pull request. Callers only pick a change up when their pin moves.
+shellcheck and the bats tests on every pull request, and `claude-review-check.yml` reviews the pull
+request with this repository's Claude review workflow (main's: a pull request that changes
+it gets no review, see above). Callers only pick a change up when their pin moves.
