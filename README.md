@@ -12,16 +12,26 @@ workflow of its own; the logic, the pinned actions and the permissions live here
 ## Claude review
 
 On every pull request that is opened, updated, reopened or marked ready, Claude reviews the
-change with the [`code-review`](https://github.com/anthropics/claude-code) plugin of
-[`claude-code-action`](https://github.com/anthropics/claude-code-action):
+change with [`claude-code-action`](https://github.com/anthropics/claude-code-action) and this
+workflow's own prompt:
 
-- It reviews against the **calling repository's rules**: its `CLAUDE.md`, and the
-  `AGENTS.md` that one points to. This workflow stays generic.
-- It posts **inline comments**, or one summary comment when it finds nothing. It may also
-  skip a pull request it judges trivial, such as a one-line workflow change: then the
-  check is green without a comment.
+- It reviews against the **calling repository's rules**: every `CLAUDE.md` and `AGENTS.md`,
+  the files they import with `@`, and the `guidelines` input. The rules come from the
+  **base branch**: a pull request cannot change the rules it is reviewed against. A change to
+  a rules file is itself reviewed, and named in the summary.
+- **Every push** is reviewed. After the first review, only what changed since the last
+  successful review (changes merged in from the base left out). A force-push or a base merge
+  that resolved conflicts gets a full review again.
+- It posts **inline comments**, and one **summary comment per push**: the scope, the files
+  it read, what it skipped, and the rules that applied. A clean review is one line.
+- The check is **red** when Claude ended without a summary: a green check means a review.
 - It **never approves**. A person reads the comments and merges.
-- A new push **cancels** the review still running for the same pull request.
+- A new push **cancels** the review still running for the same pull request; the next
+  review then covers both pushes.
+
+Shell scripts in [`.github/claude-review/`](.github/claude-review) decide the scope and put
+the base rules in place before Claude starts; [`test/`](test) holds their tests
+(`bats test/`).
 
 Skipped: drafts, pull requests opened by bots (Renovate, release-please; the action refuses
 bot actors anyway) and pull requests from forks (GitHub withholds the secret from those).
@@ -30,9 +40,10 @@ bot actors anyway) and pull requests from forks (GitHub withholds the secret fro
 
 | Input | Default | What it does |
 |---|---|---|
+| `model` | `claude-opus-5-5` | The Claude model that reviews. |
 | `max-turns` | `40` | Cap on Claude's turns per review. |
 | `timeout-minutes` | `20` | Cap on the job's run time. |
-| `guidelines` | `""` | More guideline files to review against, space-separated paths without quotes (e.g. `docs/design/README.md`). `CLAUDE.md` is always read; a file it only links to may not be. |
+| `guidelines` | `""` | More guideline files to review against, space-separated paths without quotes (e.g. `docs/design/README.md`). `CLAUDE.md`, `AGENTS.md` and the files they import with `@` are always read; a file they only link to is not. |
 | `show-full-output` | `false` | Prints Claude's full transcript, tool results included, in the job log, to see what a review read and why. Private repositories only, and only for a while: the log holds whatever Claude read. |
 
 ### Once per organization
@@ -60,6 +71,7 @@ jobs:
   review:
     name: Review
     permissions:
+      actions: read # find the last successful review
       contents: read
       pull-requests: read
       issues: read
@@ -76,10 +88,7 @@ jobs:
   this one.
 - Give the repository a `CLAUDE.md` with its rules: the review is only as specific as that.
 
-| Input | Default | Meaning |
-|---|---|---|
-| `max-turns` | 40 | Cap on Claude's turns per review |
-| `timeout-minutes` | 20 | Cap on the job's run time |
+Inputs (see the table above) go under `with:`:
 
 ```yaml
     with:

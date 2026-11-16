@@ -1,0 +1,27 @@
+name: Test
+
+# The shell scripts behind the reusable workflows: shellcheck and their bats tests.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  scripts:
+    name: Scripts
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install bats
+        run: sudo apt-get update -q && sudo apt-get install -y -q bats
+      - name: shellcheck
+        run: shellcheck .github/claude-review/*.sh
+      - name: bats
+        run: bats test/
