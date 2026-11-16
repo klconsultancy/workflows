@@ -8,6 +8,11 @@ workflow of its own; the logic, the pinned actions and the permissions live here
 |---|---|
 | [`claude-review.yml`](.github/workflows/claude-review.yml) | Claude reviews every pull request against the repository's own `CLAUDE.md` / `AGENTS.md` |
 | [`pr-title.yml`](.github/workflows/pr-title.yml) | A pull request's title is a Conventional Commit, the squash commit's message |
+| [`zizmor.yml`](.github/workflows/zizmor.yml) | zizmor audits the repository's own workflows, at a version pinned here |
+
+The repository is public, so repositories outside the organization (a personal account's,
+private ones too) can call these workflows as well. Each workflow's header holds its caller
+and its inputs.
 
 ## Claude review
 
@@ -137,6 +142,18 @@ title`**: a job from a reusable workflow is named `<caller job> / <its own job>`
 merge queue, a required check must also report on the queue's merge group, so the caller
 adds `merge_group`. There the check passes without checking: the group has no title, and the
 pull request's title was checked before it entered the queue.
+
+## zizmor
+
+[`zizmor.yml`](.github/workflows/zizmor.yml) audits the calling repository's workflows with
+[zizmor](https://github.com/zizmorcore/zizmor), at the version pinned here. Inputs: `paths`
+(default `.github/`), `config` (the repository's `.github/zizmor.yml`), `version`,
+`runs-on`, and `container` for a runner without Python (Python and pip are installed in
+it). This repository runs it on itself from `test.yml`, so a pull request here runs the
+changed workflow before any caller moves its pin.
+
+A repository's single required check (e.g. `CI success`) stays a job of its own that
+`needs:` the calls: a reusable workflow's jobs report as `<caller job> / <job>`.
 
 ## Changing a workflow here
 

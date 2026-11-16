@@ -1,0 +1,82 @@
+name: zizmor
+
+# Reusable: audits the calling repository's GitHub Actions workflows with zizmor
+# (https://docs.zizmor.sh): unpinned actions, too-wide permissions, template injection,
+# credentials left in a checkout. Findings fail the job and show in its log; nothing is
+# uploaded to code scanning (that needs security-events: write, and GitHub Advanced
+# Security on a private repository).
+#
+# zizmor's version is pinned here, so a new release with new audits reaches every
+# repository through a pull request here, not overnight.
+#
+# The action installs zizmor with Python's pip. On a runner without Python (a lean
+# self-hosted runner), pass a `container` that has apt: Python and pip are installed in it
+# first.
+#
+# Caller (.github/workflows/zizmor.yml in a repository):
+#
+#   on:
+#     pull_request:
+#       paths: [".github/**"]
+#     push:
+#       branches: [main]
+#       paths: [".github/**"]
+#   permissions: {}
+#   jobs:
+#     zizmor:
+#       permissions:
+#         contents: read
+#       uses: klconsultancy/workflows/.github/workflows/zizmor.yml@<sha> # main
+#       with:
+#         config: .github/zizmor.yml # only when the repository has one
+
+on:
+  workflow_call:
+    inputs:
+      paths:
+        description: What zizmor audits, space-separated paths.
+        type: string
+        default: .github/
+      config:
+        description: zizmor's configuration file in the calling repository (ignores per rule); empty for none.
+        type: string
+        default: ""
+      version:
+        description: The zizmor version.
+        type: string
+        default: 1.32.0
+      runs-on:
+        description: The runner label (e.g. a self-hosted runner's).
+        type: string
+        default: ubuntu-latest
+      container:
+        description: A container image to run in, with apt (e.g. ubuntu:26.04); empty runs on the runner itself.
+        type: string
+        default: ""
+
+permissions: {}
+
+jobs:
+  zizmor:
+    name: zizmor
+    runs-on: ${{ inputs.runs-on }}
+    # An empty image runs the job on the runner itself.
+    container: ${{ inputs.container }}
+    permissions:
+      contents: read
+    steps:
+      - name: Install Python and pip
+        if: inputs.container != ''
+        run: |
+          apt-get update -q
+          apt-get install -y -q python3 python3-pip ca-certificates
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd # v0.8.1
+        with:
+          inputs: ${{ inputs.paths }}
+          config: ${{ inputs.config }}
+          version: ${{ inputs.version }}
+          advanced-security: false
+          annotations: true
