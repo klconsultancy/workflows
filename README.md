@@ -40,11 +40,15 @@ workflow's own prompt:
   it read, what it skipped, and the rules that applied. A clean review is one line.
 - The check is **red** when Claude ended without a summary: a green check means a review.
   Expect red on a pull request that adds or changes the caller workflow file: the Claude
-  GitHub App only grants its token for a caller identical to the default branch's. Whether
-  it also compares this reusable workflow with `main` is not known yet (the check runs on
-  Anthropic's side); if it does, a pull request here that changes `claude-review.yml` is red
-  too, and the dogfooding below does not cover it.
+  GitHub App only grants its token for a caller identical to the default branch's, and it
+  compares a reusable workflow the caller takes from its own repository the same way. So a
+  pull request here that changes `claude-review.yml` is red too ("Workflow validation
+  failed", #9): such a change is tested only after the merge, in a caller.
 - It **never approves**. A person reads the comments and merges.
+- Its tools are a **strict list**: reading files, inline comments, `gh pr view`, `gh pr diff`
+  and `gh pr comment`. Anything else is denied (`--permission-mode default`, not the
+  action's auto mode, whose safety review can pass a call no rule allows): a review reads
+  untrusted pull request content, so that content must not be able to make it run commands.
 - A new push **cancels** the review still running for the same pull request; the next
   review then covers both pushes.
 
@@ -201,8 +205,9 @@ Every change goes through a pull request. Pin actions to a full commit SHA with 
 in a comment, keep `permissions` minimal and `persist-credentials: false`, and check the
 file with [actionlint](https://github.com/rhysd/actionlint) and
 [zizmor](https://github.com/zizmorcore/zizmor); the Test workflow runs actionlint, zizmor,
-shellcheck and the bats tests on every pull request, and `claude-review-check.yml` runs this
-repository's own Claude review workflow, as changed by the pull request, on the pull request. Callers only pick a change up when their pin moves.
+shellcheck and the bats tests on every pull request, and `claude-review-check.yml` reviews the pull
+request with this repository's Claude review workflow (main's: a pull request that changes
+it gets no review, see above). Callers only pick a change up when their pin moves.
 
 Renovate runs on this repository too (`renovate-run.yml`, through `renovate.yml` itself,
 with [`renovate.json`](renovate.json)): it keeps the pins every caller shares current, the
