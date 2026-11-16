@@ -10,6 +10,7 @@ name: PR title
 #   on:
 #     pull_request:
 #       types: [opened, edited, synchronize, reopened]
+#     merge_group: # only with a merge queue
 #   permissions: {}
 #   jobs:
 #     title:
@@ -18,11 +19,9 @@ name: PR title
 #         pull-requests: read
 #       uses: klconsultancy/workflows/.github/workflows/pr-title.yml@<sha> # main
 #
-# The required status check is then "PR title / Conventional commit title".
-#
-# With a merge queue, add `merge_group:` to the caller's triggers: a required check must
-# report on the queue's merge group too. The title was checked on the pull request; the
-# group has none, so the job passes there without checking.
+# The required status check is then "PR title / Conventional commit title". With a merge
+# queue, a required check must also report on the queue's merge group: there it passes
+# without a check, because the group has no title and the pull request's was checked.
 
 on:
   workflow_call:

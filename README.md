@@ -134,6 +134,7 @@ name: PR title
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
+  merge_group: # only with a merge queue
 
 permissions: {}
 
@@ -146,10 +147,10 @@ jobs:
 ```
 
 The required status check in the repository's ruleset is **`PR title / Conventional commit
-title`**: a job from a reusable workflow is named `<caller job> / <its own job>`.
-
-With a merge queue, add `merge_group:` to the triggers: the check then passes on the
-queue's merge group, which has no title of its own to check.
+title`**: a job from a reusable workflow is named `<caller job> / <its own job>`. With a
+merge queue, a required check must also report on the queue's merge group, so the caller
+adds `merge_group`. There the check passes without checking: the group has no title, and the
+pull request's title was checked before it entered the queue.
 
 ## Release, Renovate, Python, Home Assistant, Shell, zizmor
 
