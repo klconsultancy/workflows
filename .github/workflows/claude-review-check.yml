@@ -1,9 +1,10 @@
 name: Claude review
 
-# Dogfooding: this repository's pull requests are reviewed by the Claude review workflow as the
-# pull request changes it, so a change to it runs live before any caller moves its pin. Fork
+# Dogfooding: this repository's pull requests are reviewed by the Claude review workflow. Fork
 # pull requests are skipped by the workflow itself (and get no secrets). A pull request that
-# changes this file is red: the Claude GitHub App only serves a caller identical to main's.
+# changes this file or claude-review.yml is red: the Claude GitHub App only serves a caller,
+# and a reusable workflow it takes from this repository, identical to main's. A change to the
+# review is therefore tested after the merge, in a caller, before its pin moves elsewhere.
 
 on:
   pull_request:
