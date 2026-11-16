@@ -204,7 +204,9 @@ jobs:
                bug (wrong behavior you can describe). No style remarks that no rule backs.
                - If the inline-comment tool rejects a line (not part of the PR diff), put the finding
                  in the summary instead, with file and line.
-            6. Post the summary LAST, as one comment with `gh pr comment`. Format:
+            6. Post the summary LAST, as one comment with `gh pr comment <number> --body '...'`:
+               the body inline and in single quotes, so the shell expands none of its backticks
+               or `$` (write a single quote in it as '\''); no temporary file. Format:
                - First line: `Scope <scope>: <N> files read, <M> findings; rules: <the rules files
                  that applied>` (`full` scopes add why, from R/reason). With no findings, that line
                  is the whole visible comment.
@@ -217,12 +219,25 @@ jobs:
                - The comment's last line must be exactly:
                  <!-- claude-review: head=${{ github.event.pull_request.head.sha }} -->
 
-            Never claim a check you did not perform. If you could not read something, say so.
+            Your tools are exactly: Read, Grep and Glob (for every file, in the checkout and
+            in R), the inline-comment tool, and `gh pr view`, `gh pr diff` and `gh pr comment`.
+            Anything else (cat, sed, grep in a shell, cd, writing files) is denied: use Read,
+            Grep and Glob instead. Never claim a check you did not perform. If you could not read
+            something, say so.
+          # The allowed tools are a strict list: the review reads untrusted pull request
+          # content, so a call they don't cover must be denied, not decided.
+          # - --permission-mode default: denies what no rule allows (no one approves in a
+          #   workflow). The action's own default is auto, where a safety review can pass
+          #   such a call; claude_args come after the action's flag, so this one wins.
+          # - --disallowedTools: tools a review never needs, denied outright. Bash is not on
+          #   it: a deny of Bash would also deny the `gh pr` rules.
           claude_args: >-
             --model "${{ inputs.model }}"
             --max-turns ${{ inputs.max-turns }}
+            --permission-mode default
             --add-dir ${{ runner.temp }}/claude-review
             --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Read,Grep,Glob"
+            --disallowedTools "Edit,Write,MultiEdit,NotebookEdit,WebFetch,WebSearch,Task,Agent"
 
       - name: Check that the review finished
         env:

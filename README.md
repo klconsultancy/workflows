@@ -31,6 +31,10 @@ workflow's own prompt:
   Anthropic's side); if it does, a pull request here that changes `claude-review.yml` is red
   too, and the dogfooding below does not cover it.
 - It **never approves**. A person reads the comments and merges.
+- Its tools are a **strict list**: reading files, inline comments, `gh pr view`, `gh pr diff`
+  and `gh pr comment`. Anything else is denied (`--permission-mode default`, not the
+  action's auto mode, whose safety review can pass a call no rule allows): a review reads
+  untrusted pull request content, so that content must not be able to make it run commands.
 - A new push **cancels** the review still running for the same pull request; the next
   review then covers both pushes.
 
