@@ -1,7 +1,7 @@
 name: Test
 
 # The shell scripts behind the reusable workflows (shellcheck, bats), and the workflows
-# themselves (zizmor).
+# themselves (actionlint, zizmor).
 
 on:
   pull_request:
@@ -42,3 +42,17 @@ jobs:
           # Findings in the job log, failing the job; no code-scanning upload (that needs
           # security-events: write).
           advanced-security: false
+
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The official image (actionlint with shellcheck for run: blocks), pinned by digest.
+      - uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 # 1.7.12
+        with:
+          args: -color
