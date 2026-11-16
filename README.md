@@ -130,5 +130,5 @@ title`**: a job from a reusable workflow is named `<caller job> / <its own job>`
 Every change goes through a pull request. Pin actions to a full commit SHA with the version
 in a comment, keep `permissions` minimal and `persist-credentials: false`, and check the
 file with [actionlint](https://github.com/rhysd/actionlint) and
-[zizmor](https://github.com/zizmorcore/zizmor). Callers only pick a change up when their
-pin moves.
+[zizmor](https://github.com/zizmorcore/zizmor); the Test workflow runs zizmor, shellcheck
+and the bats tests on every pull request. Callers only pick a change up when their pin moves.

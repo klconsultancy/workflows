@@ -1,6 +1,7 @@
 name: Test
 
-# The shell scripts behind the reusable workflows: shellcheck and their bats tests.
+# The shell scripts behind the reusable workflows (shellcheck, bats), and the workflows
+# themselves (zizmor).
 
 on:
   pull_request:
@@ -25,3 +26,19 @@ jobs:
         run: shellcheck .github/claude-review/*.sh
       - name: bats
         run: bats test/
+
+  zizmor:
+    name: zizmor
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd # v0.8.1
+        with:
+          version: 1.32.0
+          # Findings in the job log, failing the job; no code-scanning upload (that needs
+          # security-events: write).
+          advanced-security: false
