@@ -155,7 +155,7 @@ variables and secrets for release-please and Renovate). In short:
 - **`release-please.yml`** outputs `release_created` and `tag_name`, for the caller's own
   release jobs (PyPI, binaries, images): `needs: release` and
   `if: needs.release.outputs.release_created == 'true'`. With
-  `release-candidates: true` (and `contents: write`) a pushed `v1.2.3-rc.1` tag becomes a
+  `release-candidates: true` a pushed `v1.2.3-rc.1` tag becomes a
   GitHub pre-release.
 - **`renovate.yml`** takes the runner (`runs-on`), the image and the Renovate version as
   inputs; the schedule is the caller's.
