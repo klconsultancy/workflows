@@ -27,21 +27,16 @@ jobs:
       - name: bats
         run: bats test/
 
+  # The reusable zizmor workflow, as the pull request changes it: it runs live before any
+  # caller moves its pin.
   zizmor:
     name: zizmor
-    runs-on: ubuntu-latest
     permissions:
       contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd # v0.8.1
-        with:
-          version: 1.32.0
-          # Findings in the job log, failing the job; no code-scanning upload (that needs
-          # security-events: write).
-          advanced-security: false
+    # `$/...` (self-repository syntax) once actionlint understands it; 1.7.12 rejects it.
+    uses: ./.github/workflows/zizmor.yml # zizmor: ignore[self-repository]
+    with:
+      config: .github/zizmor.yml
 
   actionlint:
     name: actionlint
@@ -53,6 +48,6 @@ jobs:
         with:
           persist-credentials: false
       # The official image (actionlint with shellcheck for run: blocks), pinned by digest.
-      - uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 # 1.7.12
+      - uses: docker://rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 # 1.7.12
         with:
           args: -color

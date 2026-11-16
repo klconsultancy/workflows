@@ -8,6 +8,20 @@ workflow of its own; the logic, the pinned actions and the permissions live here
 |---|---|
 | [`claude-review.yml`](.github/workflows/claude-review.yml) | Claude reviews every pull request against the repository's own `CLAUDE.md` / `AGENTS.md` |
 | [`pr-title.yml`](.github/workflows/pr-title.yml) | A pull request's title is a Conventional Commit, the squash commit's message |
+| [`release-please.yml`](.github/workflows/release-please.yml) | release-please as a GitHub App, plus a pre-release for a release-candidate tag |
+| [`renovate.yml`](.github/workflows/renovate.yml) | Renovate as a GitHub App, its version pinned once for every repository |
+| [`python-uv.yml`](.github/workflows/python-uv.yml) | ruff, mypy, pytest (a Python matrix) and a checked build, for a uv project |
+| [`home-assistant.yml`](.github/workflows/home-assistant.yml) | hassfest and HACS validation of a Home Assistant custom integration |
+| [`shell.yml`](.github/workflows/shell.yml) | shellcheck, `zsh -n`, gitleaks and bats, for scripts and dotfiles |
+| [`zizmor.yml`](.github/workflows/zizmor.yml) | zizmor audits the repository's own workflows, at a version pinned here |
+
+The repository is public, so repositories outside the organization (a personal account's,
+private ones too) can call these workflows as well.
+
+What is deliberately not here: OpenSSF Scorecard (with `publish_results` the scorecard job
+must be in the repository's own workflow file, with only approved steps) and the PyPI
+upload (PyPI's trusted publishing does not accept a reusable workflow as the publisher).
+Both stay in each repository.
 
 ## Claude review
 
@@ -130,6 +144,57 @@ jobs:
 The required status check in the repository's ruleset is **`PR title / Conventional commit
 title`**: a job from a reusable workflow is named `<caller job> / <its own job>`.
 
+With a merge queue, add `merge_group:` to the triggers: the check then passes on the
+queue's merge group, which has no title of its own to check.
+
+## Release, Renovate, Python, Home Assistant, Shell, zizmor
+
+Each workflow's header holds its caller, its inputs and what it needs (the GitHub App
+variables and secrets for release-please and Renovate). In short:
+
+- **`release-please.yml`** outputs `release_created` and `tag_name`, for the caller's own
+  release jobs (PyPI, binaries, images): `needs: release` and
+  `if: needs.release.outputs.release_created == 'true'`. With
+  `release-candidates: true` (and `contents: write`) a pushed `v1.2.3-rc.1` tag becomes a
+  GitHub pre-release.
+- **`renovate.yml`** takes the runner (`runs-on`), the image and the Renovate version as
+  inputs; the schedule is the caller's.
+- **`python-uv.yml`**: `test-python-versions` (a JSON array), `mypy`, `build` (needs a
+  `release` dependency group with twine) and `check-uv-pins`. Jobs particular to one
+  project stay in its CI, next to the call.
+- **`home-assistant.yml`**: `hacs-category` and `hacs-ignore`.
+- **`shell.yml`**: `shellcheck-pathspec`, `zsh-pathspec`, `gitleaks`, `bats`, `bats-path`;
+  the secret `GITLEAKS_LICENSE` for repositories of an organization.
+- **`zizmor.yml`**: `paths`, `config` (the repository's `.github/zizmor.yml`), `version`,
+  `runs-on`, and `container` for a runner without Python (Python and pip are installed in
+  it). This repository runs it on itself from `test.yml`.
+
+A repository's single required check (e.g. `CI success`) stays a job of its own that
+`needs:` the calls: a reusable workflow's jobs report as `<caller job> / <job>`.
+
+## Renovate in a calling repository
+
+Extend the preset [`shared-workflows.json`](shared-workflows.json):
+
+```json
+{
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests", "github>klconsultancy/workflows:shared-workflows"]
+}
+```
+
+The pin on this repository then moves in a pull request of its own, **"shared workflows"**,
+which waits for review, also where the repository automerges the rest:
+`release-please.yml` and `renovate.yml` only run on `main`, so no check of the pull request
+runs a change to them, and a broken one would land everywhere at once.
+
+- **Automerge after all**, for a repository whose checks run every workflow it calls (no
+  release-please, no Renovate): a rule of its own, after the preset's:
+  `{"matchPackageNames": ["klconsultancy/workflows"], "automerge": true}`.
+- **A rule that groups all actions** (`"matchManagers": ["github-actions"]` with a
+  `groupName`) must leave the pin out with `"matchPackageNames": ["!klconsultancy/workflows"]`:
+  the repository's rules come after the preset's, and would pull the pin back into that
+  group, which would then wait for review with it.
+
 ## Changing a workflow here
 
 Every change goes through a pull request. Pin actions to a full commit SHA with the version
@@ -138,3 +203,8 @@ file with [actionlint](https://github.com/rhysd/actionlint) and
 [zizmor](https://github.com/zizmorcore/zizmor); the Test workflow runs actionlint, zizmor,
 shellcheck and the bats tests on every pull request, and `claude-review-check.yml` runs this
 repository's own Claude review workflow, as changed by the pull request, on the pull request. Callers only pick a change up when their pin moves.
+
+Renovate runs on this repository too (`renovate-run.yml`, through `renovate.yml` itself,
+with [`renovate.json`](renovate.json)): it keeps the pins every caller shares current, the
+actions as well as the Renovate and zizmor versions in the inputs' defaults. Those updates
+wait for review: once merged, they reach every caller with its next pin update.
