@@ -25,6 +25,8 @@ workflow's own prompt:
 - It posts **inline comments**, and one **summary comment per push**: the scope, the files
   it read, what it skipped, and the rules that applied. A clean review is one line.
 - The check is **red** when Claude ended without a summary: a green check means a review.
+  Expect red on a pull request that adds or changes the caller workflow file: the Claude
+  GitHub App only grants its token for a caller identical to the default branch's.
 - It **never approves**. A person reads the comments and merges.
 - A new push **cancels** the review still running for the same pull request; the next
   review then covers both pushes.
