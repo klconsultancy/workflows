@@ -1,0 +1,28 @@
+name: Claude review
+
+# Dogfooding: this repository's pull requests are reviewed by the Claude review workflow as the
+# pull request changes it, so a change to it runs live before any caller moves its pin. Fork
+# pull requests are skipped by the workflow itself (and get no secrets). A pull request that
+# changes this file is red: the Claude GitHub App only serves a caller identical to main's.
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+permissions: {}
+
+jobs:
+  review:
+    name: Review
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+      issues: read
+      id-token: write
+    # `$/...` (self-repository syntax) once actionlint understands it; 1.7.12 rejects it.
+    uses: ./.github/workflows/claude-review.yml # zizmor: ignore[self-repository]
+    with:
+      guidelines: README.md
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

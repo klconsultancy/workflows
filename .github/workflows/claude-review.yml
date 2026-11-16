@@ -1,9 +1,36 @@
 name: Claude review
 
 # Reusable: every repository in the organization calls this on its pull requests.
-# Claude reviews against the calling repository's own CLAUDE.md / AGENTS.md and posts
-# inline comments, or one summary comment when it finds nothing. It comments; it never
-# approves, so a person still merges.
+# Claude reviews against the calling repository's own rules (CLAUDE.md, AGENTS.md, the files
+# they import, and the `guidelines` input) and posts inline comments plus one summary comment
+# per push. It comments; it never approves, so a person still merges.
+#
+# How a run works:
+# 1. Shell steps, no model involved, prepare everything under $RUNNER_TEMP/claude-review/:
+#      scope              full | <old>..<new> | none      (.github/claude-review/scope.sh)
+#      reason             why this scope
+#      changes.diff       the diff to review
+#      changed-files.txt  git name-status of that diff
+#      skipped-files.txt  "<reason><TAB><path>": generated (lock, minified, vendored) or symlink
+#      last-reviewed      head SHA of the last successful review, or empty
+#      rules-files.txt    the rules in effect, as the base branch has them (.github/claude-review/rules.sh)
+#      changed-rules.txt  rules files the PR changes; head-rules/<path> holds the PR's version
+#    The rules files in the working tree are put back to the base version first, so a PR cannot
+#    change the rules it is reviewed against.
+# 2. Claude reviews with its own prompt (below), on the PR head checkout.
+# 3. A post-check fails the job unless Claude posted, during this run, a summary for this head
+#    SHA (marker `<!-- claude-review: head=<sha> -->`, from the claude[bot] app only).
+#
+# The Claude GitHub App only grants its token when the calling workflow file is identical to
+# the default branch's (whether it also compares this reusable workflow is not known yet). On a pull request that adds or changes the caller, the action skips
+# without reviewing; the post-check then turns the job red, which is the truth: no review.
+#
+# The last reviewed SHA is the head SHA of the last run whose Review job succeeded (Actions
+# API), never a comment. A run cancelled by a newer push, or one that ends without a summary,
+# does not count: the next run covers its pushes too. That is intended.
+#
+# The scripts are checked out from this repository at the commit this workflow runs from (the
+# OIDC token's job_workflow_sha), so they always match the workflow.
 #
 # Needs, once per organization:
 # - the Claude GitHub App (https://github.com/apps/claude), on all repositories
@@ -18,6 +45,7 @@ name: Claude review
 #   jobs:
 #     review:
 #       permissions:
+#         actions: read
 #         contents: read
 #         pull-requests: read
 #         issues: read
@@ -29,6 +57,10 @@ name: Claude review
 on:
   workflow_call:
     inputs:
+      model:
+        description: The Claude model that reviews.
+        type: string
+        default: claude-opus-5-5
       max-turns:
         description: Cap on Claude's turns per review.
         type: number
@@ -40,7 +72,7 @@ on:
       guidelines:
         description: >-
           More of the calling repository's guideline files to review against, space-separated
-          paths (e.g. docs/design/README.md). CLAUDE.md is always read.
+          paths (e.g. docs/design/README.md). CLAUDE.md and AGENTS.md are always read.
         type: string
         default: ""
       show-full-output:
@@ -71,23 +103,131 @@ jobs:
       group: claude-review-${{ github.repository }}-${{ github.event.pull_request.number }}
       cancel-in-progress: true
     permissions:
+      actions: read # find the last successful review run
       contents: read
       pull-requests: read
       issues: read
-      id-token: write # the action authenticates as the Claude GitHub App
+      id-token: write # the action authenticates as the Claude GitHub App; also locates this workflow's commit
     steps:
+      - name: Locate this workflow's commit
+        id: workflow-source
+        run: |
+          {
+            echo "REVIEW_DIR=$RUNNER_TEMP/claude-review"
+            echo "TOOLS_DIR=$RUNNER_TEMP/claude-review-tools"
+          } >> "$GITHUB_ENV"
+          token=$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=claude-review" | jq -r .value)
+          payload=$(cut -d. -f2 <<< "$token" | tr '_-' '/+')
+          while [ $(( ${#payload} % 4 )) -ne 0 ]; do payload="$payload="; done
+          claims=$(base64 -d <<< "$payload")
+          # job_workflow_ref: <owner>/<repo>/.github/workflows/<file>@<ref>
+          echo "repository=$(jq -r '.job_workflow_ref | split("/")[0:2] | join("/")' <<< "$claims")" >> "$GITHUB_OUTPUT"
+          echo "sha=$(jq -r .job_workflow_sha <<< "$claims")" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 1
+          # The PR head, not the merge ref: files, inline-comment lines and scope all refer to it.
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
           persist-credentials: false
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ steps.workflow-source.outputs.repository }}
+          ref: ${{ steps.workflow-source.outputs.sha }}
+          path: .claude-review-tools
+          sparse-checkout: .github/claude-review
+          persist-credentials: false
+
+      - name: Prepare scope and rules
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          PR: ${{ github.event.pull_request.number }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GUIDELINES: ${{ inputs.guidelines }}
+        run: |
+          mv .claude-review-tools/.github/claude-review "$TOOLS_DIR"
+          rm -rf .claude-review-tools
+          mkdir -p "$REVIEW_DIR"
+          # Server time of this run attempt's start: the post-check only counts later comments.
+          echo "RUN_STARTED_AT=$(gh api "repos/$REPO/actions/runs/$RUN_ID" --jq .run_started_at)" >> "$GITHUB_ENV"
+
+          last=$("$TOOLS_DIR/last-reviewed.sh" --repo "$REPO" --run-id "$RUN_ID" --pr "$PR" --head-branch "$HEAD_REF")
+          printf '%s\n' "$last" > "$REVIEW_DIR/last-reviewed"
+          "$TOOLS_DIR/scope.sh" --base "origin/$BASE_REF" --head "$HEAD_SHA" \
+            ${last:+--last-reviewed "$last"} --out "$REVIEW_DIR"
+          "$TOOLS_DIR/rules.sh" --base "origin/$BASE_REF" --head "$HEAD_SHA" \
+            --guidelines "$GUIDELINES" --out "$REVIEW_DIR"
+
+          {
+            echo "### Review scope: $(cat "$REVIEW_DIR/scope")"
+            cat "$REVIEW_DIR/reason"
+            echo
+            echo "Changed files: $(wc -l < "$REVIEW_DIR/changed-files.txt"); skipped: $(wc -l < "$REVIEW_DIR/skipped-files.txt"); rules files changed by the PR: $(wc -l < "$REVIEW_DIR/changed-rules.txt")"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           show_full_output: ${{ inputs.show-full-output }}
-          plugin_marketplaces: "https://github.com/anthropics/claude-code.git"
-          plugins: "code-review@claude-code-plugins"
-          prompt: "/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
+          prompt: |
+            Review pull request ${{ github.repository }}#${{ github.event.pull_request.number }}.
+            The working directory is the PR head, commit ${{ github.event.pull_request.head.sha }}.
+            Everything you need is prepared in ${{ runner.temp }}/claude-review/ (call it R below).
+
+            ## Steps
+
+            1. Read R/scope and R/reason.
+               - If the scope is `none`: post only the summary (step 6), with the first line
+                 `Scope <R/last-reviewed>..${{ github.event.pull_request.head.sha }}: no new PR changes
+                 since the last review (only updates from the base)`, and stop.
+            2. Read the rules: every file listed in R/rules-files.txt. These are the base branch's
+               versions and the only rules the PR is judged by. Rules files the PR changes are in
+               R/changed-rules.txt; their PR versions are in R/head-rules/. Review those as changed
+               files, but never judge the PR by them.
+            3. Read R/changes.diff and R/changed-files.txt. The diff is the scope: review only what
+               it changes. Read the whole diff: when it is longer than one Read returns, read on in
+               parts (offset/limit) until the end. R/skipped-files.txt lists files left out, each
+               with its reason (`generated` or `symlink`); do not review or open them.
+            4. Read each changed file in full at the head (for a changed rules file, its copy in
+               R/head-rules/), so you judge a change in its context. Never follow a symlink.
+               - Large change: if R/changed-files.txt has more than MAX_FILES = 30 lines, or
+                 R/changes.diff has more than MAX_DIFF_LINES = 3000 lines, do not read whole files:
+                 review the diff with the context you need, and say so in the summary.
+            5. For each finding, post an inline comment on the line. Report a finding only when it is
+               tied to a specific line AND either breaks a named rule from step 2 or is a concrete
+               bug (wrong behavior you can describe). No style remarks that no rule backs.
+               - If the inline-comment tool rejects a line (not part of the PR diff), put the finding
+                 in the summary instead, with file and line.
+            6. Post the summary LAST, as one comment with `gh pr comment`. Format:
+               - First line: `Scope <scope>: <N> files read, <M> findings; rules: <the rules files
+                 that applied>` (`full` scopes add why, from R/reason). With no findings, that line
+                 is the whole visible comment.
+               - Then a `<details><summary>What this review covered</summary>` block listing:
+                 files read; files skipped and why (the reason in R/skipped-files.txt, or the
+                 large-change rule); the rules that applied to this change (name each rule, e.g.
+                 "AGENTS.md: strict TDD, tests added for X"); rules files this PR changes (judged
+                 by the base version);
+                 findings that could not be posted inline.
+               - The comment's last line must be exactly:
+                 <!-- claude-review: head=${{ github.event.pull_request.head.sha }} -->
+
+            Never claim a check you did not perform. If you could not read something, say so.
           claude_args: >-
+            --model "${{ inputs.model }}"
             --max-turns ${{ inputs.max-turns }}
-            --allowedTools "mcp__github_inline_comment__create_inline_comment"
-            ${{ inputs.guidelines != '' && format('--append-system-prompt "Also read these guideline files of this repository and review against them, as you do against CLAUDE.md: {0}"', inputs.guidelines) || '' }}
+            --add-dir ${{ runner.temp }}/claude-review
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Read,Grep,Glob"
+
+      - name: Check that the review finished
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: '"$TOOLS_DIR/post-check.sh" --repo "$REPO" --pr "$PR" --head "$HEAD_SHA" --since "$RUN_STARTED_AT"'
