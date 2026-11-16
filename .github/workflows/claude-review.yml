@@ -22,8 +22,10 @@ name: Claude review
 #    SHA (marker `<!-- claude-review: head=<sha> -->`, from the claude[bot] app only).
 #
 # The Claude GitHub App only grants its token when the calling workflow file is identical to
-# the default branch's (whether it also compares this reusable workflow is not known yet). On a pull request that adds or changes the caller, the action skips
-# without reviewing; the post-check then turns the job red, which is the truth: no review.
+# the default branch's, and so is a reusable workflow it takes from its own repository (this
+# one, in claude-review-check.yml). On a pull request that adds or changes the caller, or here
+# this file, the action skips without reviewing; the post-check then turns the job red, which
+# is the truth: no review.
 #
 # The last reviewed SHA is the head SHA of the last run whose Review job succeeded (Actions
 # API), never a comment. A run cancelled by a newer push, or one that ends without a summary,
