@@ -26,7 +26,10 @@ workflow's own prompt:
   it read, what it skipped, and the rules that applied. A clean review is one line.
 - The check is **red** when Claude ended without a summary: a green check means a review.
   Expect red on a pull request that adds or changes the caller workflow file: the Claude
-  GitHub App only grants its token for a caller identical to the default branch's.
+  GitHub App only grants its token for a caller identical to the default branch's. Whether
+  it also compares this reusable workflow with `main` is not known yet (the check runs on
+  Anthropic's side); if it does, a pull request here that changes `claude-review.yml` is red
+  too, and the dogfooding below does not cover it.
 - It **never approves**. A person reads the comments and merges.
 - A new push **cancels** the review still running for the same pull request; the next
   review then covers both pushes.
