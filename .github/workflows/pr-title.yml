@@ -10,6 +10,7 @@ name: PR title
 #   on:
 #     pull_request:
 #       types: [opened, edited, synchronize, reopened]
+#     merge_group: # only with a merge queue
 #   permissions: {}
 #   jobs:
 #     title:
@@ -18,7 +19,9 @@ name: PR title
 #         pull-requests: read
 #       uses: klconsultancy/workflows/.github/workflows/pr-title.yml@<sha> # main
 #
-# The required status check is then "PR title / Conventional commit title".
+# The required status check is then "PR title / Conventional commit title". With a merge
+# queue, a required check must also report on the queue's merge group: there it passes
+# without a check, because the group has no title and the pull request's was checked.
 
 on:
   workflow_call:
@@ -32,6 +35,9 @@ jobs:
     permissions:
       pull-requests: read
     steps:
-      - uses: amannn/action-semantic-pull-request@2252a14e810aa9b85c2d560bd7070c802206ecf6 # v6.1.2
+      - if: github.event_name != 'merge_group'
+        uses: amannn/action-semantic-pull-request@2252a14e810aa9b85c2d560bd7070c802206ecf6 # v6.1.2
         env:
           GITHUB_TOKEN: ${{ github.token }}
+      - if: github.event_name == 'merge_group'
+        run: echo "Checked on the pull request."
