@@ -255,9 +255,11 @@ the secret `RELEASE_APP_PRIVATE_KEY`.
   ```
 
   `force-tag-creation` because GitHub tags a draft only when it is published, and
-  release-please needs the tag to find the previous release. Without assets nothing changes;
-  a draft release-please creates is published all the same. A draft whose assets fail stays
-  a draft: fix the cause and re-run the failed jobs.
+  release-please needs the tag to find the previous release. A draft whose assets fail stays
+  a draft: fix the cause and re-run the failed jobs. Without `assets` this workflow publishes
+  no draft: a repository that attaches files of its own (binaries, images) in a job after
+  it, with `"draft": true`, publishes its draft itself (`gh release edit "$TAG"
+  --draft=false`).
 - **Maintenance branches**: release-please works on the branch that was pushed. A caller that
   also triggers on a branch such as `1.x` (`push: branches: [main, "1.x"]`) gets release pull
   requests against `1.x`, its own changelog there, and `v1.x.y` releases next to main's.

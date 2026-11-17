@@ -30,7 +30,8 @@ name: Release please
 # releases the caller's release-please-config.json sets `"draft": true` and
 # `"force-tag-creation": true` (GitHub tags a draft only when it is published, and
 # release-please needs the tag to find the previous release). A draft whose assets fail is
-# never published: fix the cause and re-run the failed jobs.
+# never published: fix the cause and re-run the failed jobs. Without `assets` no draft is
+# published here: a caller that attaches files of its own publishes its draft itself.
 #
 # Outputs, for the caller's own release jobs (binaries, images, PyPI):
 #   release_created    'true' when this push to main created a release
@@ -320,13 +321,11 @@ jobs:
 
   publish:
     name: Publish release
-    needs: [release-please, release-candidate, upload]
-    # After the assets, if any: a draft whose assets failed stays a draft.
-    if: >-
-      always() &&
-      (needs.release-please.outputs.release_created == 'true' ||
-      needs.release-candidate.result == 'success') &&
-      (inputs.assets == '' || needs.upload.result == 'success')
+    needs: [release-please, upload]
+    # Only a release whose assets this workflow attached: a draft whose assets failed stays a
+    # draft, and a caller's own draft (its binaries, in a job after this workflow) is the
+    # caller's to publish.
+    if: always() && inputs.assets != '' && needs.upload.result == 'success'
     runs-on: ubuntu-latest
     permissions: {} # it acts as the app
     steps:
