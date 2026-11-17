@@ -1,4 +1,10 @@
 rules:
+  # The Renovate app holds only what Renovate needs; a permission-* list would only drift
+  # from it.
+  github-app:
+    ignore:
+      - renovate.yml
+
   # The image is the caller's input: pinning it (by digest) is the caller's to do.
   unpinned-images:
     ignore:

@@ -1,0 +1,77 @@
+name: Renovate
+
+# Reusable: runs Renovate on the calling repository, as a GitHub App rather than
+# GITHUB_TOKEN: the app's pull requests run CI, and its merges run the workflows on main,
+# release-please's among them. Renovate's own version is pinned here, once for every
+# repository; renovate.json in the calling repository holds its configuration.
+#
+# Needs, in the calling repository (or once for the organization):
+# - the variable RENOVATE_APP_CLIENT_ID and the secret RENOVATE_APP_PRIVATE_KEY, of a
+#   GitHub App installed on the repository
+#
+# Caller (.github/workflows/renovate.yml in a repository):
+#
+#   on:
+#     schedule:
+#       - cron: "0 5 * * *"
+#     workflow_dispatch:
+#   permissions: {}
+#   jobs:
+#     renovate:
+#       permissions:
+#         contents: read
+#       uses: klconsultancy/workflows/.github/workflows/renovate.yml@<sha> # main
+#       with:
+#         app-client-id: ${{ vars.RENOVATE_APP_CLIENT_ID }}
+#       secrets:
+#         RENOVATE_APP_PRIVATE_KEY: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+
+on:
+  workflow_call:
+    inputs:
+      app-client-id:
+        description: Client ID of the GitHub App Renovate acts as.
+        type: string
+        required: true
+      runs-on:
+        description: The runner label (e.g. a self-hosted runner's).
+        type: string
+        default: ubuntu-latest
+      renovate-image:
+        description: The Renovate container image.
+        type: string
+        default: ghcr.io/renovatebot/renovate
+      renovate-version:
+        description: The Renovate version; the default is pinned here for every repository.
+        type: string
+        default: 44.239.1
+    secrets:
+      RENOVATE_APP_PRIVATE_KEY:
+        required: true
+
+permissions: {}
+
+jobs:
+  renovate:
+    name: Renovate
+    runs-on: ${{ inputs.runs-on }}
+    concurrency:
+      # One Renovate run per repository at a time.
+      group: renovate-${{ github.repository }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: app-token
+        with:
+          client-id: ${{ inputs.app-client-id }}
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+          # No permission-* list: the app holds only what Renovate needs, and a list here
+          # would only drift from it (.github/zizmor.yml).
+      - uses: renovatebot/github-action@266fef21329c44765ad42f9dea1f01f5d2d91084 # v46.3.13
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          renovate-image: ${{ inputs.renovate-image }}
+          renovate-version: ${{ inputs.renovate-version }}
+        env:
+          RENOVATE_REPOSITORIES: ${{ github.repository }}
