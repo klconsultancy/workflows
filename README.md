@@ -11,6 +11,7 @@ workflow of its own; the logic, the pinned actions and the permissions live here
 | [`zizmor.yml`](.github/workflows/zizmor.yml) | zizmor audits the repository's own workflows, at a version pinned here |
 | [`python-uv.yml`](.github/workflows/python-uv.yml) | ruff, mypy, pytest (a Python matrix) and a checked build, for a uv project |
 | [`home-assistant.yml`](.github/workflows/home-assistant.yml) | hassfest and HACS validation of a Home Assistant custom integration |
+| [`shell.yml`](.github/workflows/shell.yml) | shellcheck, `zsh -n`, gitleaks and bats, for scripts and dotfiles |
 
 The repository is public, so repositories outside the organization (a personal account's,
 private ones too) can call these workflows as well. Each workflow's header holds its caller
@@ -173,6 +174,14 @@ lowest or newest version) stay in its CI, next to the call.
 action on a custom integration. Inputs: `hacs-category` (default `integration`) and
 `hacs-ignore`. Both validate against rules that change without a commit in the calling
 repository, so callers also run it on a weekly schedule.
+
+## Shell
+
+[`shell.yml`](.github/workflows/shell.yml) checks scripts and dotfiles: shellcheck, `zsh -n`,
+gitleaks over the history and optionally bats. Inputs: `shellcheck-pathspec`,
+`zsh-pathspec`, `gitleaks`, `bats`, `bats-path`. gitleaks needs the secret
+`GITLEAKS_LICENSE` in a repository of an organization; a personal account's repositories
+need none.
 
 ## Changing a workflow here
 

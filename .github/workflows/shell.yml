@@ -1,0 +1,103 @@
+name: Shell
+
+# Reusable: checks a repository of shell scripts and dotfiles: shellcheck on the scripts,
+# `zsh -n` on the zsh files, gitleaks over the history, and (optionally) its bats tests.
+# Files are found with `git ls-files`, so ignored and untracked files are left out.
+#
+# gitleaks-action needs a (free) license for repositories of an organization: pass
+# GITLEAKS_LICENSE there. A personal account's repositories need none.
+#
+# Caller (.github/workflows/ci.yml in a repository):
+#
+#   on:
+#     push:
+#     pull_request:
+#   permissions: {}
+#   jobs:
+#     shell:
+#       permissions:
+#         contents: read
+#         pull-requests: read # gitleaks lists a pull request's commits
+#       uses: klconsultancy/workflows/.github/workflows/shell.yml@<sha> # main
+#       with:
+#         # chezmoi: *.tmpl files are templates, not shell yet.
+#         shellcheck-pathspec: "*.sh dot_local/bin/executable_*"
+#         bats: true
+
+on:
+  workflow_call:
+    inputs:
+      shellcheck-pathspec:
+        description: Git pathspecs of the scripts to shellcheck, space-separated.
+        type: string
+        default: "*.sh"
+      zsh-pathspec:
+        description: Git pathspecs of the zsh files to syntax-check, space-separated; empty skips it.
+        type: string
+        default: "*.zsh"
+      gitleaks:
+        description: Scan the history for secrets with gitleaks.
+        type: boolean
+        default: true
+      bats:
+        description: Run the bats tests in `bats-path`.
+        type: boolean
+        default: false
+      bats-path:
+        description: Where the bats tests are.
+        type: string
+        default: tests/
+    secrets:
+      GITLEAKS_LICENSE:
+        description: gitleaks-action's license; only repositories of an organization need it.
+        required: false
+
+permissions: {}
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read # gitleaks lists a pull request's commits; private repositories need it
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # gitleaks scans the history
+          persist-credentials: false
+      - name: shellcheck
+        env:
+          PATHSPEC: ${{ inputs.shellcheck-pathspec }}
+        run: |
+          read -ra pathspec <<< "$PATHSPEC"
+          git ls-files -z -- "${pathspec[@]}" | xargs -0 -r shellcheck
+      - name: zsh syntax
+        if: inputs.zsh-pathspec != ''
+        env:
+          PATHSPEC: ${{ inputs.zsh-pathspec }}
+        run: |
+          sudo apt-get install -y -q zsh >/dev/null
+          read -ra pathspec <<< "$PATHSPEC"
+          git ls-files -z -- "${pathspec[@]}" | xargs -0 -r -n1 zsh -n
+      - name: gitleaks
+        if: inputs.gitleaks
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+  bats:
+    name: bats
+    if: inputs.bats
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: sudo apt-get install -y -q bats >/dev/null
+      - env:
+          BATS_PATH: ${{ inputs.bats-path }}
+        run: bats "$BATS_PATH"
