@@ -203,11 +203,12 @@ Extend the preset [`shared-workflows.json`](shared-workflows.json):
 
 The pin on this repository then moves in a pull request of its own, **"shared workflows"**,
 which waits for review, also where the repository automerges the rest:
-`release-please.yml` and `renovate.yml` only run on `main`, so no check of the pull request
-runs a change to them, and a broken one would land everywhere at once.
+`release-please.yml` and `renovate.yml` only run on `main`, and `claude-review.yml` skips
+pull requests opened by a bot, so no check of the pull request runs a change to them, and a
+broken one would land everywhere at once.
 
 - **Automerge after all**, for a repository whose checks run every workflow it calls (no
-  release-please, no Renovate): a rule of its own, after the preset's:
+  release-please, no Renovate, no Claude review): a rule of its own, after the preset's:
   `{"matchPackageNames": ["klconsultancy/workflows"], "automerge": true}`.
 - **A rule that groups all actions** (`"matchManagers": ["github-actions"]` with a
   `groupName`) must leave the pin out with `"matchPackageNames": ["!klconsultancy/workflows"]`:
