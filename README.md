@@ -10,6 +10,7 @@ workflow of its own; the logic, the pinned actions and the permissions live here
 | [`pr-title.yml`](.github/workflows/pr-title.yml) | A pull request's title is a Conventional Commit, the squash commit's message |
 | [`zizmor.yml`](.github/workflows/zizmor.yml) | zizmor audits the repository's own workflows, at a version pinned here |
 | [`python-uv.yml`](.github/workflows/python-uv.yml) | ruff, mypy, pytest (a Python matrix) and a checked build, for a uv project |
+| [`home-assistant.yml`](.github/workflows/home-assistant.yml) | hassfest and HACS validation of a Home Assistant custom integration |
 
 The repository is public, so repositories outside the organization (a personal account's,
 private ones too) can call these workflows as well. Each workflow's header holds its caller
@@ -165,6 +166,13 @@ A repository's single required check (e.g. `CI success`) stays a job of its own 
 version agrees in `.devcontainer/Dockerfile`, `pyproject.toml` and
 `.pre-commit-config.yaml`). Jobs particular to one project (a dependency's
 lowest or newest version) stay in its CI, next to the call.
+
+## Home Assistant
+
+[`home-assistant.yml`](.github/workflows/home-assistant.yml) runs hassfest and the HACS
+action on a custom integration. Inputs: `hacs-category` (default `integration`) and
+`hacs-ignore`. Both validate against rules that change without a commit in the calling
+repository, so callers also run it on a weekly schedule.
 
 ## Changing a workflow here
 
