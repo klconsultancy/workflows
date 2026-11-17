@@ -28,7 +28,7 @@ on:
   workflow_call:
     inputs:
       shellcheck-pathspec:
-        description: Git pathspecs of the scripts to shellcheck, space-separated.
+        description: Git pathspecs of the scripts to shellcheck, space-separated; empty skips it.
         type: string
         default: "*.sh"
       zsh-pathspec:
@@ -67,6 +67,7 @@ jobs:
           fetch-depth: 0 # gitleaks scans the history
           persist-credentials: false
       - name: shellcheck
+        if: inputs.shellcheck-pathspec != ''
         env:
           PATHSPEC: ${{ inputs.shellcheck-pathspec }}
         run: |
