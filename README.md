@@ -9,6 +9,7 @@ workflow of its own; the logic, the pinned actions and the permissions live here
 | [`claude-review.yml`](.github/workflows/claude-review.yml) | Claude reviews every pull request against the repository's own `CLAUDE.md` / `AGENTS.md` |
 | [`pr-title.yml`](.github/workflows/pr-title.yml) | A pull request's title is a Conventional Commit, the squash commit's message |
 | [`zizmor.yml`](.github/workflows/zizmor.yml) | zizmor audits the repository's own workflows, at a version pinned here |
+| [`python-uv.yml`](.github/workflows/python-uv.yml) | ruff, mypy, pytest (a Python matrix) and a checked build, for a uv project |
 
 The repository is public, so repositories outside the organization (a personal account's,
 private ones too) can call these workflows as well. Each workflow's header holds its caller
@@ -154,6 +155,16 @@ changed workflow before any caller moves its pin.
 
 A repository's single required check (e.g. `CI success`) stays a job of its own that
 `needs:` the calls: a reusable workflow's jobs report as `<caller job> / <job>`.
+
+## Python (uv)
+
+[`python-uv.yml`](.github/workflows/python-uv.yml) runs ruff, mypy and pytest through
+`uv run` against the locked environment, so the tools are the project's own. Inputs:
+`python-version`, `test-python-versions` (a JSON array), `mypy`, `build` (`uv build` and
+`twine check`; needs a `release` dependency group with twine) and `check-uv-pins` (the uv
+version agrees in `.devcontainer/Dockerfile`, `pyproject.toml` and
+`.pre-commit-config.yaml`). Jobs particular to one project (a dependency's
+lowest or newest version) stay in its CI, next to the call.
 
 ## Changing a workflow here
 
