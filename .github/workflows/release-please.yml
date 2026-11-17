@@ -24,6 +24,15 @@ name: Release please
 # candidate's pre-release. The command runs without any token: the checkout uses a
 # read-only one, and only a second job, which runs nothing of the repository's, uploads.
 #
+# Immutable releases: a published release takes no new assets, so a release with assets is
+# made as a draft, gets its assets, and is published only then (job "Publish release"). A
+# release candidate's pre-release is a draft here already. For release-please's own
+# releases the caller's release-please-config.json sets `"draft": true` and
+# `"force-tag-creation": true` (GitHub tags a draft only when it is published, and
+# release-please needs the tag to find the previous release). A draft whose assets fail is
+# never published: fix the cause and re-run the failed jobs. Without `assets` no draft is
+# published here: a caller that attaches files of its own publishes its draft itself.
+#
 # Outputs, for the caller's own release jobs (binaries, images, PyPI):
 #   release_created    'true' when this push to main created a release
 #   tag_name           that release's tag
@@ -229,7 +238,13 @@ jobs:
       - env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           TAG: ${{ github.ref_name }}
-        run: gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --prerelease --generate-notes --title "$TAG"
+          ASSETS: ${{ inputs.assets }}
+        # With assets a draft, which "Publish release" publishes once they are attached: an
+        # immutable release takes no new assets.
+        run: |
+          draft=()
+          [[ -n $ASSETS ]] && draft=(--draft)
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --prerelease --generate-notes --title "$TAG" "${draft[@]}"
 
   assets:
     name: Build release assets
@@ -293,8 +308,53 @@ jobs:
             echo "Upload attempt $attempt failed."
             sleep 10
           done
-          attached=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
+          read -r draft attached < <(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --json isDraft,assets --jq '"\(.isDraft) \([.assets[].name] | join(" "))"')
           for file in "${files[@]}"; do
-            grep -qxF "$(basename "$file")" <<<"$attached" \
-              || { echo "::error::$TAG has no $(basename "$file")"; exit 1; }
+            [[ " $attached " == *" $(basename "$file") "* ]] && continue
+            echo "::error::$TAG has no $(basename "$file")."
+            if [[ $draft != true ]]; then
+              echo "::error::$TAG was published before its assets, and an immutable release takes none: set \"draft\": true and \"force-tag-creation\": true in release-please-config.json."
+            fi
+            exit 1
           done
+
+  publish:
+    name: Publish release
+    needs: [release-please, upload]
+    # Only a release whose assets this workflow attached: a draft whose assets failed stays a
+    # draft, and a caller's own draft (its binaries, in a job after this workflow) is the
+    # caller's to publish.
+    if: always() && inputs.assets != '' && needs.upload.result == 'success'
+    runs-on: ubuntu-latest
+    permissions: {} # it acts as the app
+    steps:
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: app-token
+        with:
+          client-id: ${{ inputs.app-client-id }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+      - env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TAG: ${{ needs.release-please.outputs.tag_name || github.ref_name }}
+        # A published draft becomes "Latest" unless told otherwise: only a release that is
+        # the highest version is (not a maintenance branch's v1.4.1 after v2.0.0).
+        run: |
+          read -r draft prerelease < <(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --json isDraft,isPrerelease --jq '"\(.isDraft) \(.isPrerelease)"')
+          if [[ $draft != true ]]; then
+            echo "$TAG is published already."
+            exit 0
+          fi
+          args=(--draft=false)
+          if [[ $prerelease != true ]]; then
+            latest=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName 2>/dev/null || true)
+            if [[ -z $latest || $(printf '%s\n' "$latest" "$TAG" | sort -V | tail -n1) == "$TAG" ]]; then
+              args+=(--latest)
+            else
+              echo "$latest is newer than $TAG: it stays Latest."
+              args+=(--latest=false)
+            fi
+          fi
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" "${args[@]}"
+          echo "Published $TAG."
