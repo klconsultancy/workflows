@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
-  "description": "The pins of every repository's shared workflows live here. Updates come on the 1st and the 15th, grouped, and wait for review: a change here reaches every caller once Renovate moves its pin there, and the Renovate and release workflows only run on the callers' main.",
+  "description": "The pins of every repository's shared workflows live here. Updates come on the 1st and the 15th, grouped, and wait for review: a change here reaches every caller once Renovate moves its pin there, and the Renovate and release workflows only run on the callers' main. Their commits are fix(deps): what they pin is what every caller runs, so each one is a patch release.",
   "timezone": "Europe/Brussels",
   "schedule": ["* 0-8 1,15 * *"],
   "platformCommit": "enabled",
@@ -32,19 +32,19 @@
   "packageRules": [
     {
       "matchManagers": ["github-actions"],
-      "semanticCommitType": "ci",
+      "semanticCommitType": "fix",
       "groupName": "actions"
     },
     {
       "description": "zizmor-action only installs the zizmor versions it has a lock file for, so they move together; the zizmor job in test.yml runs the result.",
       "matchPackageNames": ["zizmor", "zizmorcore/zizmor-action"],
-      "semanticCommitType": "ci",
+      "semanticCommitType": "fix",
       "groupName": "zizmor"
     },
     {
       "description": "Renovate and its action together.",
       "matchPackageNames": ["ghcr.io/renovatebot/renovate", "renovatebot/github-action"],
-      "semanticCommitType": "ci",
+      "semanticCommitType": "fix",
       "groupName": "renovate"
     }
   ]

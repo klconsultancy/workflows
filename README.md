@@ -95,13 +95,13 @@ jobs:
       pull-requests: read
       issues: read
       id-token: write # the action authenticates as the Claude GitHub App
-    uses: klconsultancy/workflows/.github/workflows/claude-review.yml@<sha> # main
+    uses: klconsultancy/workflows/.github/workflows/claude-review.yml@<sha> # v1.0.0
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
 
-- Pin `<sha>` to a commit on `main` here. Renovate (`helpers:pinGitHubActionDigests`)
-  keeps the pin current.
+- Pin a release: `<sha>` is the commit of its tag, and the comment its version (see
+  [Releases](#releases)). Renovate (`helpers:pinGitHubActionDigests`) moves both together.
 - The job's permissions are the most the reusable workflow gets: keep them as above.
 - Pass the secret by name, not with `secrets: inherit`, so the repository hands over only
   this one.
@@ -139,7 +139,7 @@ jobs:
     name: PR title
     permissions:
       pull-requests: read
-    uses: klconsultancy/workflows/.github/workflows/pr-title.yml@<sha> # main
+    uses: klconsultancy/workflows/.github/workflows/pr-title.yml@<sha> # v1.0.0
 ```
 
 The required status check in the repository's ruleset is **`PR title / Conventional commit
@@ -203,7 +203,8 @@ Extend the preset [`shared-workflows.json`](shared-workflows.json):
 ```
 
 The pin on this repository then moves in a pull request of its own, **"shared workflows"**,
-which waits for review, also where the repository automerges the rest:
+with the release notes in it, which waits for review, also where the repository automerges
+the rest (a major release, a breaking change, comes in one of its own):
 `release-please.yml` and `renovate.yml` only run on `main`, and `claude-review.yml` skips
 pull requests opened by a bot, so no check of the pull request runs a change to them, and a
 broken one would land everywhere at once.
@@ -261,9 +262,35 @@ file with [actionlint](https://github.com/rhysd/actionlint) and
 [zizmor](https://github.com/zizmorcore/zizmor); the Test workflow runs actionlint, zizmor,
 shellcheck and the bats tests on every pull request, and `claude-review-check.yml` reviews the pull
 request with this repository's Claude review workflow (main's: a pull request that changes
-it gets no review, see above). Callers only pick a change up when their pin moves.
+it gets no review, see above). Callers only pick a change up when their pin moves to a
+release that has it.
+
+### Releases
+
+This repository releases with release-please, through its own `release-please.yml`
+([`release.yml`](.github/workflows/release.yml)), like the repositories that call it:
+merging the release pull request tags `vX.Y.Z` and creates the GitHub release with the
+changelog. Callers pin those releases, `@<sha> # v1.2.3`: a tag doesn't move (a ruleset
+keeps `v*` tags from being moved or deleted; only the release app creates them), so the
+comment stays true for zizmor's `ref-version-mismatch`, and Renovate moves the SHA and the
+version together.
+
+The pull request's title decides the version, so it says what a caller notices:
+
+- `fix:` a patch, `feat:` a minor;
+- `!` (`feat!:`) a major: a caller must change something (an input renamed or removed, a new
+  required permission or secret). Renovate brings a major in a pull request of its own;
+- `ci:`, `docs:`, `test:`, `chore:` release nothing: they change this repository only.
+
+The check **Release type** ([`release-type.yml`](.github/workflows/release-type.yml)) holds
+a pull request to that: one that changes a reusable workflow (a file with `workflow_call:`)
+or the scripts `claude-review.yml` runs (`.github/claude-review/`) fails under a title that
+releases nothing, since callers would never get the change. The Renovate preset
+`shared-workflows.json` is the exception: Renovate reads it from `main`, so a change to it
+takes effect at once, whatever the title.
 
 Renovate runs on this repository too (`renovate-run.yml`, through `renovate.yml` itself,
 with [`renovate.json`](renovate.json)): it keeps the pins every caller shares current, the
 actions as well as the Renovate and zizmor versions in the inputs' defaults. Those updates
-wait for review: once merged, they reach every caller with its next pin update.
+are `fix(deps):`, a patch release each, and wait for review: once released, they reach
+every caller with its next pin update.

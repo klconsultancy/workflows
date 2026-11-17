@@ -17,7 +17,7 @@ name: PR title
 #       name: PR title
 #       permissions:
 #         pull-requests: read
-#       uses: klconsultancy/workflows/.github/workflows/pr-title.yml@<sha> # main
+#       uses: klconsultancy/workflows/.github/workflows/pr-title.yml@<sha> # v1.0.0
 #
 # The required status check is then "PR title / Conventional commit title". With a merge
 # queue, a required check must also report on the queue's merge group: there it passes

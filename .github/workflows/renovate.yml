@@ -20,7 +20,7 @@ name: Renovate
 #     renovate:
 #       permissions:
 #         contents: read
-#       uses: klconsultancy/workflows/.github/workflows/renovate.yml@<sha> # main
+#       uses: klconsultancy/workflows/.github/workflows/renovate.yml@<sha> # v1.0.0
 #       with:
 #         app-client-id: ${{ vars.RENOVATE_APP_CLIENT_ID }}
 #       secrets:
