@@ -243,6 +243,21 @@ the secret `RELEASE_APP_PRIVATE_KEY`.
   candidate's pre-release with `create-prerelease: true`. The command runs without a
   token (the checkout uses a read-only one); a separate job uploads, as the app, retries
   and checks that every file is there. The caller grants nothing more.
+- **Immutable releases** take no assets once published, so a release with assets is a draft
+  until its assets are attached; the job **Publish release** then publishes it (and keeps
+  "Latest" on the highest version). A release candidate's pre-release is a draft here
+  already. For release-please's own releases the caller's `release-please-config.json`
+  sets, per package:
+
+  ```json
+  "draft": true,
+  "force-tag-creation": true
+  ```
+
+  `force-tag-creation` because GitHub tags a draft only when it is published, and
+  release-please needs the tag to find the previous release. Without assets nothing changes;
+  a draft release-please creates is published all the same. A draft whose assets fail stays
+  a draft: fix the cause and re-run the failed jobs.
 - **Maintenance branches**: release-please works on the branch that was pushed. A caller that
   also triggers on a branch such as `1.x` (`push: branches: [main, "1.x"]`) gets release pull
   requests against `1.x`, its own changelog there, and `v1.x.y` releases next to main's.
