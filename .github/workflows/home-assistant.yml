@@ -1,0 +1,67 @@
+name: Home Assistant
+
+# Reusable: validates a Home Assistant custom integration the way Home Assistant and HACS
+# do: hassfest (the manifest, services, translations) and the HACS action. Both validate
+# against rules that change without a commit in the calling repository, so callers also
+# run it on a weekly schedule.
+#
+# Caller (a job in the repository's CI workflow):
+#
+#   on:
+#     push:
+#       branches: [main]
+#     pull_request:
+#     merge_group:
+#     schedule:
+#       - cron: "41 3 * * 1"
+#   permissions: {}
+#   jobs:
+#     home-assistant:
+#       permissions:
+#         contents: read
+#       uses: klconsultancy/workflows/.github/workflows/home-assistant.yml@<sha> # main
+#
+# The checks are then "home-assistant / hassfest" and "home-assistant / HACS".
+
+on:
+  workflow_call:
+    inputs:
+      hacs-category:
+        description: The HACS category (integration, plugin, theme, ...).
+        type: string
+        default: integration
+      hacs-ignore:
+        description: >-
+          HACS checks to skip, space-separated (e.g. `brands` until the integration's
+          images are in home-assistant/brands).
+        type: string
+        default: ""
+
+permissions: {}
+
+jobs:
+  hassfest:
+    name: hassfest
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Pinned to a branch's commit: home-assistant/actions' only release (1.0.0) is from 2020.
+      - uses: home-assistant/actions/hassfest@86d4564712fa02543c808e3a693dd04f9d3f8361 # master
+
+  hacs:
+    name: HACS
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # Pinned to a branch's commit: hacs/action's last release (22.5.0) is from 2022, and
+      # HACS's own docs run main.
+      - uses: hacs/action@1ebf01c408f29afcb6406bd431bc98fd8cbb15aa # main
+        with:
+          category: ${{ inputs.hacs-category }}
+          ignore: ${{ inputs.hacs-ignore }}
+          comment: false
