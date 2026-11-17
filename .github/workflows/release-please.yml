@@ -123,11 +123,20 @@ jobs:
           # The pushed branch, not the repository's default: a maintenance branch (1.x) gets
           # release pull requests and releases of its own.
           target-branch: ${{ github.ref_name }}
+      # Only when that release is the higher version: a maintenance branch cut before main's
+      # next major has the newest release (v1.4.1 after v1.4.0), and keeps "Latest".
       - if: steps.release.outputs.release_created == 'true' && steps.latest.outputs.tag != ''
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           LATEST: ${{ steps.latest.outputs.tag }}
-        run: gh release edit "$LATEST" --repo "$GITHUB_REPOSITORY" --latest
+          TAG: ${{ steps.release.outputs.tag_name }}
+        run: |
+          if [[ $(printf '%s\n' "$LATEST" "$TAG" | sort -V | tail -n1) == "$TAG" ]]; then
+            echo "$TAG is newer than $LATEST: it stays Latest."
+          else
+            echo "$LATEST is newer than $TAG: it is made Latest again."
+            gh release edit "$LATEST" --repo "$GITHUB_REPOSITORY" --latest
+          fi
 
   release-candidate:
     name: Release candidate

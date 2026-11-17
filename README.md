@@ -240,8 +240,8 @@ the secret `RELEASE_APP_PRIVATE_KEY`.
 - **Maintenance branches**: release-please works on the branch that was pushed. A caller that
   also triggers on a branch such as `1.x` (`push: branches: [main, "1.x"]`) gets release pull
   requests against `1.x`, its own changelog there, and `v1.x.y` releases next to main's.
-  Such a release does not take GitHub's "Latest" from main's: the release that was latest
-  before it is made latest again.
+  Such a release does not take GitHub's "Latest" from a higher version: when the release
+  that was latest before it is the higher one, that one is made latest again.
 
 What is deliberately not here: OpenSSF Scorecard (with `publish_results` the scorecard job
 must be in the repository's own workflow file, with only approved steps) and the PyPI
