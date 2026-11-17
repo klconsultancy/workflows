@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/klconsultancy/workflows/compare/v1.0.0...v1.0.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **release-please:** attach assets to a draft, then publish it, for immutable releases ([#23](https://github.com/klconsultancy/workflows/issues/23)) ([1338ba4](https://github.com/klconsultancy/workflows/commit/1338ba45c8e766f3f4e53cfcc6136e1aefb9827d))
+
 ## 1.0.0 (2026-11-17)
 
 
