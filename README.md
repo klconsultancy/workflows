@@ -220,13 +220,23 @@ broken one would land everywhere at once.
 
 [`release-please.yml`](.github/workflows/release-please.yml) runs release-please as the
 GitHub App `klconsultancy-release-bot`, so its release pull requests and tags start
-workflows. Inputs: `app-client-id` (`vars.RELEASE_APP_CLIENT_ID`) and `release-candidates`;
+workflows. Inputs: `app-client-id` (`vars.RELEASE_APP_CLIENT_ID`), `release-candidates`,
+`assets-command` and `assets`;
 the secret `RELEASE_APP_PRIVATE_KEY`.
 
 - It outputs `release_created` and `tag_name`, for the caller's own release jobs (PyPI,
   binaries, images): `needs: release` and
   `if: needs.release.outputs.release_created == 'true'`.
-- With `release-candidates: true` a pushed `v1.2.3-rc.1` tag becomes a GitHub pre-release.
+- With `release-candidates: true` a pushed `v1.2.3-rc.1` tag becomes a GitHub pre-release,
+  if it is a candidate of the pending release: release-please's open release pull request
+  is for 1.2.3, and the tagged commit is on that pull request's base branch. Otherwise the
+  job fails and nothing is released; the tag is left for a person to delete.
+- With `assets` (paths or globs, one per line) and `assets-command`, the release gets files
+  of its own, such as the zip HACS installs: the command builds them in a checkout of the
+  tag, with the tag in `$TAG`, and they are attached to the release, and to a release
+  candidate's pre-release with `release-candidates: true`. The command runs without a
+  token (the checkout uses a read-only one); a separate job uploads, as the app, retries
+  and checks that every file is there. The caller grants nothing more.
 
 What is deliberately not here: OpenSSF Scorecard (with `publish_results` the scorecard job
 must be in the repository's own workflow file, with only approved steps) and the PyPI
