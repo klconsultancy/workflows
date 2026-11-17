@@ -282,6 +282,13 @@ The pull request's title decides the version, so it says what a caller notices:
   required permission or secret). Renovate brings a major in a pull request of its own;
 - `ci:`, `docs:`, `test:`, `chore:` release nothing: they change this repository only.
 
+The check **Release type** ([`release-type.yml`](.github/workflows/release-type.yml)) holds
+a pull request to that: one that changes a reusable workflow (a file with `workflow_call:`)
+or the scripts `claude-review.yml` runs (`.github/claude-review/`) fails under a title that
+releases nothing, since callers would never get the change. The Renovate preset
+`shared-workflows.json` is the exception: Renovate reads it from `main`, so a change to it
+takes effect at once, whatever the title.
+
 Renovate runs on this repository too (`renovate-run.yml`, through `renovate.yml` itself,
 with [`renovate.json`](renovate.json)): it keeps the pins every caller shares current, the
 actions as well as the Renovate and zizmor versions in the inputs' defaults. Those updates
