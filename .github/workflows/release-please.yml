@@ -44,7 +44,7 @@ name: Release please
 #   jobs:
 #     release:
 #       permissions: {} # its jobs act as the app
-#       uses: klconsultancy/workflows/.github/workflows/release-please.yml@<sha> # main
+#       uses: klconsultancy/workflows/.github/workflows/release-please.yml@<sha> # v1.0.0
 #       with:
 #         app-client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
 #         create-prerelease: true # only with release candidates

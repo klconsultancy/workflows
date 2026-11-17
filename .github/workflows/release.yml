@@ -1,0 +1,23 @@
+name: Release
+
+# This repository's own releases, through its own release-please.yml (as main has it).
+# Callers pin a release (`@<sha> # v1.2.3`): a tag never moves, so the comment stays true
+# and Renovate moves the SHA and the version together, with the release notes. A pull
+# request's title decides the version: `fix:` a patch, `feat:` a minor, `!` (a breaking
+# change for callers) a major, which Renovate brings in a pull request of its own. `ci:`,
+# `docs:` and `chore:` release nothing: they change this repository, not what callers run.
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  release:
+    permissions: {} # its jobs act as the app
+    # `$/...` (self-repository syntax) once actionlint understands it; 1.7.12 rejects it.
+    uses: ./.github/workflows/release-please.yml # zizmor: ignore[self-repository]
+    with:
+      app-client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+    secrets:
+      RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
