@@ -6,23 +6,29 @@ name: Release please
 # so CI runs on the release pull request; the app may also create the version tags a
 # "release tags" ruleset protects.
 #
-# A release candidate is a tag such as v1.2.3-rc.1 on main, pushed by an admin. With
-# `release-candidates: true` it becomes a GitHub pre-release here (HACS offers those to
-# users who enabled beta versions). release-please doesn't see it, so the final release's
-# notes still cover everything since the last stable release. A repository that builds
-# something for its release candidates (PyPI, binaries, images) leaves this off and
-# creates the pre-release itself, after the build.
+# A release candidate is a tag such as v1.2.3-rc.1, pushed by an admin; a repository has
+# them when its caller triggers on such tags. Every pushed tag is checked first: it must be
+# a candidate of the release release-please has pending (that release pull request's
+# version, the tagged commit on its base branch). The output `release_candidate` is then
+# 'true'; a tag that is not fails the check, and nothing of it is built or released.
+# With `create-prerelease: true` a checked candidate becomes a GitHub pre-release here (HACS
+# offers those to users who enabled beta versions). A repository that builds something for
+# its release candidates (PyPI, binaries, images) leaves it off and creates the pre-release
+# itself, after its build, behind `needs.<job>.outputs.release_candidate == 'true'`.
+# release-please doesn't see release candidates, so the final release's notes still cover
+# everything since the last stable release.
 #
 # Release assets: with `assets` set, the files a release needs (a HACS zip, say) are built by
 # `assets-command` in a checkout of the release's tag and attached to the release, after
-# release-please creates it and, with `release-candidates: true`, after a release
+# release-please creates it and, with `create-prerelease: true`, after a release
 # candidate's pre-release. The command runs without any token: the checkout uses a
 # read-only one, and only a second job, which runs nothing of the repository's, uploads.
 #
 # Outputs, for the caller's own release jobs (binaries, images, PyPI):
-#   release_created  'true' when this push to main created a release
-#   tag_name         that release's tag
-# On a tag push both are empty: use `github.ref_name` there.
+#   release_created    'true' when this push to main created a release
+#   tag_name           that release's tag
+#   release_candidate  'true' when this push is of a checked release candidate tag
+# On a tag push the first two are empty: use `github.ref_name` there.
 #
 # Needs, in the calling repository (or once for the organization):
 # - the variable RELEASE_APP_CLIENT_ID and the secret RELEASE_APP_PRIVATE_KEY, of a
@@ -37,11 +43,11 @@ name: Release please
 #   permissions: {}
 #   jobs:
 #     release:
-#       permissions: {} # both jobs act as the app
+#       permissions: {} # its jobs act as the app
 #       uses: klconsultancy/workflows/.github/workflows/release-please.yml@<sha> # main
 #       with:
 #         app-client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
-#         release-candidates: true
+#         create-prerelease: true # only with release candidates
 #         # only for release assets:
 #         assets-command: python3 -m script.release_zip "$TAG" my_integration.zip
 #         assets: my_integration.zip
@@ -51,6 +57,10 @@ name: Release please
 #       needs: release
 #       if: needs.release.outputs.release_created == 'true'
 #       ...
+#     publish-release-candidate: # with create-prerelease off
+#       needs: release
+#       if: needs.release.outputs.release_candidate == 'true'
+#       ...
 
 on:
   workflow_call:
@@ -59,10 +69,11 @@ on:
         description: Client ID of the GitHub App release-please acts as.
         type: string
         required: true
-      release-candidates:
+      create-prerelease:
         description: >-
-          Turn a pushed release-candidate tag (v1.2.3-rc.1) into a GitHub pre-release with
-          generated notes, as the app.
+          Turn a checked release-candidate tag (v1.2.3-rc.1) into a GitHub pre-release with
+          generated notes, as the app. Off for a repository that creates it itself, after
+          its own build.
         type: boolean
         default: false
       assets-command:
@@ -87,6 +98,9 @@ on:
       tag_name:
         description: The created release's tag.
         value: ${{ jobs.release-please.outputs.tag_name }}
+      release_candidate:
+        description: "'true' when this push is of a release-candidate tag that passed the check."
+        value: ${{ jobs.check-release-candidate.outputs.release_candidate }}
 
 permissions: {}
 
@@ -138,28 +152,28 @@ jobs:
             gh release edit "$LATEST" --repo "$GITHUB_REPOSITORY" --latest
           fi
 
-  release-candidate:
-    name: Release candidate
-    if: github.ref_type == 'tag' && inputs.release-candidates
+  check-release-candidate:
+    name: Check release candidate
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
-    # The app creates the pre-release too: GitHub checks a called job's permissions against
-    # the caller's before any `if:`, so a `contents: write` here would make every caller
-    # grant it, release candidates or not.
-    permissions: {}
+    permissions: {} # it reads as the app
+    outputs:
+      release_candidate: ${{ steps.check.outputs.release_candidate }}
     steps:
       - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         id: app-token
         with:
           client-id: ${{ inputs.app-client-id }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-      - env:
+      - id: check
+        env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           TAG: ${{ github.ref_name }}
-        # release-please also tags a release candidate it releases itself (release-as with
-        # prerelease), and creates its release first: leave that one be.
+        # A tag whose release exists is release-please's own (it creates the release first,
+        # a release candidate it releases itself too) or a re-run: not a new candidate.
         run: |
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $TAG exists already."
+            echo "Release $TAG exists already: not a new release candidate."
             exit 0
           fi
 
@@ -191,11 +205,31 @@ jobs:
               exit 1
             fi
             echo "$TAG is a candidate of #$number ($version, on $base)."
-            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --prerelease --generate-notes --title "$TAG"
+            echo "release_candidate=true" >> "$GITHUB_OUTPUT"
             exit 0
           done <<<"$pending"
           echo "::error::$TAG is a candidate of $version, but the pending release is another: ${found[*]}."
           exit 1
+
+  release-candidate:
+    name: Release candidate
+    needs: check-release-candidate
+    if: inputs.create-prerelease && needs.check-release-candidate.outputs.release_candidate == 'true'
+    runs-on: ubuntu-latest
+    # The app creates the pre-release too: GitHub checks a called job's permissions against
+    # the caller's before any `if:`, so a `contents: write` here would make every caller
+    # grant it, release candidates or not.
+    permissions: {}
+    steps:
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: app-token
+        with:
+          client-id: ${{ inputs.app-client-id }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+      - env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --prerelease --generate-notes --title "$TAG"
 
   assets:
     name: Build release assets
