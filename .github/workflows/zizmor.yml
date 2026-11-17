@@ -26,6 +26,7 @@ name: zizmor
 #     zizmor:
 #       permissions:
 #         contents: read
+#       # zizmor: ignore[ref-version-mismatch] the pin trails main until Renovate moves it
 #       uses: klconsultancy/workflows/.github/workflows/zizmor.yml@<sha> # main
 #       with:
 #         config: .github/zizmor.yml # only when the repository has one

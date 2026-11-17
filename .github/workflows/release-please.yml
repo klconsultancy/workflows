@@ -44,6 +44,7 @@ name: Release please
 #   jobs:
 #     release:
 #       permissions: {} # its jobs act as the app
+#       # zizmor: ignore[ref-version-mismatch] the pin trails main until Renovate moves it
 #       uses: klconsultancy/workflows/.github/workflows/release-please.yml@<sha> # main
 #       with:
 #         app-client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}

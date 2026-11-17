@@ -13,6 +13,7 @@ name: Python
 #     python:
 #       permissions:
 #         contents: read
+#       # zizmor: ignore[ref-version-mismatch] the pin trails main until Renovate moves it
 #       uses: klconsultancy/workflows/.github/workflows/python-uv.yml@<sha> # main
 #       with:
 #         test-python-versions: '["3.12", "3.13", "3.14"]'

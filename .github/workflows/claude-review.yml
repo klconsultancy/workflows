@@ -52,6 +52,7 @@ name: Claude review
 #         pull-requests: read
 #         issues: read
 #         id-token: write
+#       # zizmor: ignore[ref-version-mismatch] the pin trails main until Renovate moves it
 #       uses: klconsultancy/workflows/.github/workflows/claude-review.yml@<sha> # main
 #       secrets:
 #         CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

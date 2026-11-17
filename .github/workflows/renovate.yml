@@ -20,6 +20,7 @@ name: Renovate
 #     renovate:
 #       permissions:
 #         contents: read
+#       # zizmor: ignore[ref-version-mismatch] the pin trails main until Renovate moves it
 #       uses: klconsultancy/workflows/.github/workflows/renovate.yml@<sha> # main
 #       with:
 #         app-client-id: ${{ vars.RENOVATE_APP_CLIENT_ID }}

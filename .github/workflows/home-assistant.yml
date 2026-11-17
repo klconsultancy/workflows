@@ -19,6 +19,7 @@ name: Home Assistant
 #     home-assistant:
 #       permissions:
 #         contents: read
+#       # zizmor: ignore[ref-version-mismatch] the pin trails main until Renovate moves it
 #       uses: klconsultancy/workflows/.github/workflows/home-assistant.yml@<sha> # main
 #
 # The checks are then "home-assistant / hassfest" and "home-assistant / HACS".
@@ -61,6 +62,7 @@ jobs:
       # Pinned to a branch's commit: hacs/action's last release (22.5.0) is from 2022, and
       # HACS's own docs run main.
       - uses: hacs/action@1ebf01c408f29afcb6406bd431bc98fd8cbb15aa # main
+        # zizmor: ignore[ref-version-mismatch] the pin trails main until Renovate moves it
         with:
           category: ${{ inputs.hacs-category }}
           ignore: ${{ inputs.hacs-ignore }}

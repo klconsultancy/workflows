@@ -17,6 +17,7 @@ name: PR title
 #       name: PR title
 #       permissions:
 #         pull-requests: read
+#       # zizmor: ignore[ref-version-mismatch] the pin trails main until Renovate moves it
 #       uses: klconsultancy/workflows/.github/workflows/pr-title.yml@<sha> # main
 #
 # The required status check is then "PR title / Conventional commit title". With a merge

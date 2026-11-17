@@ -95,13 +95,15 @@ jobs:
       pull-requests: read
       issues: read
       id-token: write # the action authenticates as the Claude GitHub App
+    # zizmor: ignore[ref-version-mismatch] the pin trails main until Renovate moves it
     uses: klconsultancy/workflows/.github/workflows/claude-review.yml@<sha> # main
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
 
 - Pin `<sha>` to a commit on `main` here. Renovate (`helpers:pinGitHubActionDigests`)
-  keeps the pin current.
+  keeps the pin current. Keep the `# zizmor: ignore[ref-version-mismatch]` line above it, see
+  [A pin on `main`](#a-pin-on-main).
 - The job's permissions are the most the reusable workflow gets: keep them as above.
 - Pass the secret by name, not with `secrets: inherit`, so the repository hands over only
   this one.
@@ -139,6 +141,7 @@ jobs:
     name: PR title
     permissions:
       pull-requests: read
+    # zizmor: ignore[ref-version-mismatch] the pin trails main until Renovate moves it
     uses: klconsultancy/workflows/.github/workflows/pr-title.yml@<sha> # main
 ```
 
@@ -159,6 +162,25 @@ changed workflow before any caller moves its pin.
 
 A repository's single required check (e.g. `CI success`) stays a job of its own that
 `needs:` the calls: a reusable workflow's jobs report as `<caller job> / <job>`.
+
+### A pin on `main`
+
+A caller pins a workflow here as `@<sha> # main`: Renovate reads `main` from the comment
+and moves the pin to `main`'s newest commit (only a lone word there works; `# pin @main` or
+no comment and Renovate skips the pin). zizmor reads the same comment as the pin's version
+and, online (with a token, as here), reports `ref-version-mismatch` ("branch points to
+commit …") once `main` has moved past the pin, which it does for days: the preset's pull
+request waits for review. So every such `uses:` gets this line above it:
+
+```yaml
+    # zizmor: ignore[ref-version-mismatch] the pin trails main until Renovate moves it
+    uses: klconsultancy/workflows/.github/workflows/zizmor.yml@<sha> # main
+```
+
+The ignore covers `ref-version-mismatch` in that one job; every other audit, and a wrong
+version comment on any other action, still fail the check. On its own line above `uses:`
+(not after `# main`) it leaves the comment Renovate reads alone. For a step's
+`- uses:` the line goes under it, inside the step: above it, it is outside the step.
 
 ## Python (uv)
 

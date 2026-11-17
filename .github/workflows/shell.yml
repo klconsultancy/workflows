@@ -18,6 +18,7 @@ name: Shell
 #       permissions:
 #         contents: read
 #         pull-requests: read # gitleaks lists a pull request's commits
+#       # zizmor: ignore[ref-version-mismatch] the pin trails main until Renovate moves it
 #       uses: klconsultancy/workflows/.github/workflows/shell.yml@<sha> # main
 #       with:
 #         # chezmoi: *.tmpl files are templates, not shell yet.
