@@ -1,0 +1,25 @@
+name: Renovate
+
+# Renovate on this repository, through the reusable workflow as main has it: the pins every
+# caller shares (actions, Renovate's and zizmor's versions) are kept current here, and a
+# broken Renovate update shows up in this run the day after it merges, before any caller
+# moves its pin to it.
+
+on:
+  schedule:
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  renovate:
+    name: Renovate
+    permissions:
+      contents: read
+    # `$/...` (self-repository syntax) once actionlint understands it; 1.7.12 rejects it.
+    uses: ./.github/workflows/renovate.yml # zizmor: ignore[self-repository]
+    with:
+      app-client-id: ${{ vars.RENOVATE_APP_CLIENT_ID }}
+    secrets:
+      RENOVATE_APP_PRIVATE_KEY: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}

@@ -12,6 +12,7 @@ workflow of its own; the logic, the pinned actions and the permissions live here
 | [`python-uv.yml`](.github/workflows/python-uv.yml) | ruff, mypy, pytest (a Python matrix) and a checked build, for a uv project |
 | [`home-assistant.yml`](.github/workflows/home-assistant.yml) | hassfest and HACS validation of a Home Assistant custom integration |
 | [`shell.yml`](.github/workflows/shell.yml) | shellcheck, `zsh -n`, gitleaks and bats, for scripts and dotfiles |
+| [`renovate.yml`](.github/workflows/renovate.yml) | Renovate as a GitHub App, its version pinned once for every repository |
 
 The repository is public, so repositories outside the organization (a personal account's,
 private ones too) can call these workflows as well. Each workflow's header holds its caller
@@ -183,6 +184,37 @@ gitleaks over the history and optionally bats. Inputs: `shellcheck-pathspec`,
 `GITLEAKS_LICENSE` in a repository of an organization; a personal account's repositories
 need none.
 
+## Renovate
+
+[`renovate.yml`](.github/workflows/renovate.yml) runs Renovate as the GitHub App
+`klconsultancy-renovate-bot`, at the version pinned here. Inputs: `app-client-id`
+(`vars.RENOVATE_APP_CLIENT_ID`), `runs-on`, `renovate-image` and `renovate-version`; the
+secret `RENOVATE_APP_PRIVATE_KEY`. The schedule is the caller's.
+
+### Renovate in a calling repository
+
+Extend the preset [`shared-workflows.json`](shared-workflows.json):
+
+```json
+{
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests", "github>klconsultancy/workflows:shared-workflows"]
+}
+```
+
+The pin on this repository then moves in a pull request of its own, **"shared workflows"**,
+which waits for review, also where the repository automerges the rest:
+`release-please.yml` and `renovate.yml` only run on `main`, and `claude-review.yml` skips
+pull requests opened by a bot, so no check of the pull request runs a change to them, and a
+broken one would land everywhere at once.
+
+- **Automerge after all**, for a repository whose checks run every workflow it calls (no
+  release-please, no Renovate, no Claude review): a rule of its own, after the preset's:
+  `{"matchPackageNames": ["klconsultancy/workflows"], "automerge": true}`.
+- **A rule that groups all actions** (`"matchManagers": ["github-actions"]` with a
+  `groupName`) must leave the pin out with `"matchPackageNames": ["!klconsultancy/workflows"]`:
+  the repository's rules come after the preset's, and would pull the pin back into that
+  group, which would then wait for review with it.
+
 ## Changing a workflow here
 
 Every change goes through a pull request. Pin actions to a full commit SHA with the version
@@ -192,3 +224,8 @@ file with [actionlint](https://github.com/rhysd/actionlint) and
 shellcheck and the bats tests on every pull request, and `claude-review-check.yml` reviews the pull
 request with this repository's Claude review workflow (main's: a pull request that changes
 it gets no review, see above). Callers only pick a change up when their pin moves.
+
+Renovate runs on this repository too (`renovate-run.yml`, through `renovate.yml` itself,
+with [`renovate.json`](renovate.json)): it keeps the pins every caller shares current, the
+actions as well as the Renovate and zizmor versions in the inputs' defaults. Those updates
+wait for review: once merged, they reach every caller with its next pin update.
