@@ -227,7 +227,10 @@ the secret `RELEASE_APP_PRIVATE_KEY`.
 - It outputs `release_created` and `tag_name`, for the caller's own release jobs (PyPI,
   binaries, images): `needs: release` and
   `if: needs.release.outputs.release_created == 'true'`.
-- With `release-candidates: true` a pushed `v1.2.3-rc.1` tag becomes a GitHub pre-release.
+- With `release-candidates: true` a pushed `v1.2.3-rc.1` tag becomes a GitHub pre-release,
+  if it is a candidate of the pending release: release-please's open release pull request
+  is for 1.2.3, and the tagged commit is on that pull request's base branch. Otherwise the
+  job fails and nothing is released; the tag is left for a person to delete.
 - With `assets` (paths or globs, one per line) and `assets-command`, the release gets files
   of its own, such as the zip HACS installs: the command builds them in a checkout of the
   tag, with the tag in `$TAG`, and they are attached to the release, and to a release

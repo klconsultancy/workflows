@@ -136,7 +136,40 @@ jobs:
             echo "Release $TAG exists already."
             exit 0
           fi
-          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --prerelease --generate-notes --title "$TAG"
+
+          # A release candidate is one of the release that release-please has pending: the
+          # tag's version is that release pull request's, and the tagged commit is on its
+          # base branch. Anything else fails here, before a pre-release or its assets; the
+          # tag is left for a person to delete.
+          if ! [[ $TAG =~ ^v([0-9]+\.[0-9]+\.[0-9]+)-rc\.[0-9]+$ ]]; then
+            echo "::error::$TAG is not a release candidate tag (v1.2.3-rc.1)."
+            exit 1
+          fi
+          version=${BASH_REMATCH[1]}
+          pending=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --label "autorelease: pending" \
+            --json number,baseRefName,headRefName --jq '.[] | "\(.number) \(.baseRefName) \(.headRefName)"')
+          if [[ -z $pending ]]; then
+            echo "::error::No release pull request is open, so $TAG is a candidate of no release."
+            exit 1
+          fi
+          found=()
+          while read -r number base head; do
+            pr_versions=$(gh api "repos/$GITHUB_REPOSITORY/contents/.release-please-manifest.json?ref=$head" \
+              --jq '.content | @base64d | fromjson | [.[]] | join(" ")')
+            found+=("#$number on $base: $pr_versions")
+            [[ " $pr_versions " == *" $version "* ]] || continue
+            # The tagged commit must be on the base branch: the branch is ahead of it or at it.
+            status=$(gh api "repos/$GITHUB_REPOSITORY/compare/$GITHUB_SHA...$base" --jq .status)
+            if [[ $status != ahead && $status != identical ]]; then
+              echo "::error::$TAG matches #$number, but its commit ${GITHUB_SHA::7} is not on $base."
+              exit 1
+            fi
+            echo "$TAG is a candidate of #$number ($version, on $base)."
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --prerelease --generate-notes --title "$TAG"
+            exit 0
+          done <<<"$pending"
+          echo "::error::$TAG is a candidate of $version, but the pending release is another: ${found[*]}."
+          exit 1
 
   assets:
     name: Build release assets
