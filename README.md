@@ -13,6 +13,7 @@ workflow of its own; the logic, the pinned actions and the permissions live here
 | [`home-assistant.yml`](.github/workflows/home-assistant.yml) | hassfest and HACS validation of a Home Assistant custom integration |
 | [`shell.yml`](.github/workflows/shell.yml) | shellcheck, `zsh -n`, gitleaks and bats, for scripts and dotfiles |
 | [`renovate.yml`](.github/workflows/renovate.yml) | Renovate as a GitHub App, its version pinned once for every repository |
+| [`release-please.yml`](.github/workflows/release-please.yml) | release-please as a GitHub App, plus a pre-release for a release-candidate tag |
 
 The repository is public, so repositories outside the organization (a personal account's,
 private ones too) can call these workflows as well. Each workflow's header holds its caller
@@ -214,6 +215,23 @@ broken one would land everywhere at once.
   `groupName`) must leave the pin out with `"matchPackageNames": ["!klconsultancy/workflows"]`:
   the repository's rules come after the preset's, and would pull the pin back into that
   group, which would then wait for review with it.
+
+## Release
+
+[`release-please.yml`](.github/workflows/release-please.yml) runs release-please as the
+GitHub App `klconsultancy-release-bot`, so its release pull requests and tags start
+workflows. Inputs: `app-client-id` (`vars.RELEASE_APP_CLIENT_ID`) and `release-candidates`;
+the secret `RELEASE_APP_PRIVATE_KEY`.
+
+- It outputs `release_created` and `tag_name`, for the caller's own release jobs (PyPI,
+  binaries, images): `needs: release` and
+  `if: needs.release.outputs.release_created == 'true'`.
+- With `release-candidates: true` a pushed `v1.2.3-rc.1` tag becomes a GitHub pre-release.
+
+What is deliberately not here: OpenSSF Scorecard (with `publish_results` the scorecard job
+must be in the repository's own workflow file, with only approved steps) and the PyPI
+upload (PyPI's trusted publishing does not accept a reusable workflow as the publisher).
+Both stay in each repository.
 
 ## Changing a workflow here
 
