@@ -107,6 +107,15 @@ jobs:
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
           # No permission-* list: the app holds only what release-please needs, and a list
           # here would only drift from it (.github/zizmor.yml).
+      # release-please creates a release without make_latest, so GitHub makes every new
+      # release "Latest", a maintenance branch's v1.4.1 after main's v2.0.0 too, and HACS,
+      # /releases/latest and `gh release download` would then offer the old major. On a
+      # maintenance branch the latest release is noted here and made latest again below.
+      - id: latest
+        if: github.ref_name != github.event.repository.default_branch
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: echo "tag=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName 2>/dev/null || true)" >> "$GITHUB_OUTPUT"
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         id: release
         with:
@@ -114,6 +123,11 @@ jobs:
           # The pushed branch, not the repository's default: a maintenance branch (1.x) gets
           # release pull requests and releases of its own.
           target-branch: ${{ github.ref_name }}
+      - if: steps.release.outputs.release_created == 'true' && steps.latest.outputs.tag != ''
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          LATEST: ${{ steps.latest.outputs.tag }}
+        run: gh release edit "$LATEST" --repo "$GITHUB_REPOSITORY" --latest
 
   release-candidate:
     name: Release candidate
