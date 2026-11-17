@@ -77,7 +77,7 @@ jobs:
         env:
           PATHSPEC: ${{ inputs.zsh-pathspec }}
         run: |
-          sudo apt-get install -y -q zsh >/dev/null
+          sudo apt-get update -q >/dev/null && sudo apt-get install -y -q zsh >/dev/null
           read -ra pathspec <<< "$PATHSPEC"
           git ls-files -z -- "${pathspec[@]}" | xargs -0 -r -n1 zsh -n
       - name: gitleaks
@@ -97,7 +97,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: sudo apt-get install -y -q bats >/dev/null
+      - run: sudo apt-get update -q >/dev/null && sudo apt-get install -y -q bats >/dev/null
       - env:
           BATS_PATH: ${{ inputs.bats-path }}
         run: bats "$BATS_PATH"
