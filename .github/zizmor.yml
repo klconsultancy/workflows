@@ -1,0 +1,5 @@
+rules:
+  # The image is the caller's input: pinning it (by digest) is the caller's to do.
+  unpinned-images:
+    ignore:
+      - zizmor.yml
