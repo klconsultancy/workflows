@@ -111,6 +111,9 @@ jobs:
         id: release
         with:
           token: ${{ steps.app-token.outputs.token }}
+          # The pushed branch, not the repository's default: a maintenance branch (1.x) gets
+          # release pull requests and releases of its own.
+          target-branch: ${{ github.ref_name }}
 
   release-candidate:
     name: Release candidate
